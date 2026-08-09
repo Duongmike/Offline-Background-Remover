@@ -1,13 +1,18 @@
 # Xóa Nền AI Offline
 
+[![CI](https://github.com/Duongmike/Offline-Background-Remover/actions/workflows/ci.yml/badge.svg)](https://github.com/Duongmike/Offline-Background-Remover/actions/workflows/ci.yml)
+[![Bản phát hành mới nhất](https://img.shields.io/github/v/release/Duongmike/Offline-Background-Remover?display_name=tag)](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)
+[![Lượt tải](https://img.shields.io/github/downloads/Duongmike/Offline-Background-Remover/total)](https://github.com/Duongmike/Offline-Background-Remover/releases)
+[![Giấy phép: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 [English](README.md) · **Tiếng Việt**
 
 Xóa Nền AI Offline là ứng dụng desktop Windows để xóa nền AI, tách nền theo
 màu nâng cao, xử lý hàng loạt và resize ảnh. Ảnh chỉ được xử lý trên máy của
 người dùng, không tải lên dịch vụ bên ngoài.
 
-> **Trạng thái:** dự án đang được phát triển tích cực. Giao diện hỗ trợ đầy đủ
-> English và Tiếng Việt, đồng thời lưu lựa chọn ngôn ngữ của người dùng.
+> **Bản hiện tại:** v1.5.0. Dự án đang được phát triển tích cực; toàn bộ workflow
+> hỗ trợ English và Tiếng Việt, đồng thời lưu lựa chọn ngôn ngữ của người dùng.
 
 ![Giao diện Offline Background Remover](ui_preview.png)
 
@@ -15,8 +20,9 @@ người dùng, không tải lên dịch vụ bên ngoài.
 
 - Xử lý một ảnh hoặc cả folder và giữ nguyên cấu trúc folder con.
 - Ba chiến lược xóa nền: AI tự động, theo màu nâng cao và Hybrid AI + màu.
+- Preview ảnh gốc/kết quả ở chế độ một ảnh trước khi mở file đã tạo.
 - Nhiều mẫu nền, overlay mask, cọ Giữ lại/Xóa thêm, Undo/Redo 20 lệnh.
-- Chuyển toàn bộ workflow desktop giữa English và Tiếng Việt mà không cần mở lại app.
+- Chuyển toàn bộ workflow bằng nút gọn `EN | VI` trên header mà không cần mở lại app.
 - Kiểm tra, tải và sửa model đã ghim SHA256 bằng Model Manager chạy nền.
 - Giao diện AI mặc định gọn; bộ điều khiển màu chỉ mở ở chế độ Theo màu/Hybrid
   và hiển thị ô màu trực quan cạnh mã hex của từng mẫu.
@@ -25,6 +31,34 @@ người dùng, không tải lên dịch vụ bên ngoài.
 - Bản phân phối Windows dùng DirectML → CPU fallback. Adapter CUDA/TensorRT chỉ
   được bật khi có runtime tương thích và benchmark phần cứng tái lập được.
 - Chạy hoàn toàn offline sau lần cài đặt model đầu tiên.
+
+## Tải và cài đặt trên Windows
+
+Tải bộ cài đã được kiểm tra tại **[GitHub Releases](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)**:
+
+1. Tải `KhongBietGiDungNoi_Setup_1.5.0.exe` và `SHA256SUMS.txt`.
+2. Có thể xác minh bộ cài trước khi chạy:
+
+   ```powershell
+   (Get-FileHash .\KhongBietGiDungNoi_Setup_1.5.0.exe -Algorithm SHA256).Hash
+   Get-Content .\SHA256SUMS.txt
+   ```
+
+3. Chạy bộ cài; bản đóng gói không yêu cầu cài Python.
+
+Installer đã gồm model U²-Net được ghim phiên bản và DirectML runtime nên có thể
+xử lý ảnh offline ngay sau khi cài. Internet chỉ cần khi tải Release hoặc sửa model
+từ Model Manager. Ứng dụng không upload ảnh của người dùng.
+
+## Chọn chế độ xóa nền
+
+- **AI tự động:** lựa chọn đầu tiên cho người, sản phẩm hoặc ảnh có chủ thể chính rõ.
+- **Theo màu nâng cao:** phù hợp nền tương đối đồng nhất; có thể lấy nhiều mẫu nền
+  và chỉnh bảo vệ cạnh khi màu vật thể gần giống màu nền.
+- **Hybrid AI + màu:** kết hợp cấu trúc AI với các màu đã lấy mẫu cho ảnh studio
+  hoặc ảnh sản phẩm khó.
+- **Cọ Giữ lại/Xóa thêm:** sửa vùng mask nhỏ với Undo/Redo 20 bước khi kết quả tự
+  động chưa đủ sạch.
 
 ## Kiến trúc
 

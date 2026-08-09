@@ -1,6 +1,8 @@
 # Xóa Nền AI Offline
 
 [![CI](https://github.com/Duongmike/Offline-Background-Remover/actions/workflows/ci.yml/badge.svg)](https://github.com/Duongmike/Offline-Background-Remover/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/Duongmike/Offline-Background-Remover?display_name=tag)](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Duongmike/Offline-Background-Remover/total)](https://github.com/Duongmike/Offline-Background-Remover/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10–3.11](https://img.shields.io/badge/Python-3.10%E2%80%933.11-blue.svg)](https://www.python.org/)
 
@@ -10,9 +12,9 @@ Xóa Nền AI Offline is a Windows desktop application for AI background removal
 advanced colour-keying, batch processing, and image resizing. Images stay on
 the local machine; the application does not upload them to a remote service.
 
-> **Project status:** actively developed. The application UI supports English
-> and Vietnamese with a persisted language selection. Public APIs and UI details
-> may change before the first stable release.
+> **Current release:** v1.5.0. The application is actively developed and its
+> complete workflow supports English and Vietnamese with a persisted language
+> selection.
 
 ![Offline Background Remover user interface](ui_preview.png)
 
@@ -20,10 +22,11 @@ the local machine; the application does not upload them to a remote service.
 
 - Process one image or a complete directory while preserving subdirectories.
 - Remove backgrounds with U²-Net, advanced colour-keying, or a hybrid strategy.
+- Preview single-image source/result pairs before opening the generated file.
 - Use multiple background samples, a mask overlay, and keep/remove brushes with
   20-step undo and redo.
-- Switch the complete desktop workflow between English and Vietnamese without
-  restarting the application.
+- Switch the complete desktop workflow from the compact `EN | VI` header control
+  without restarting the application.
 - Verify, download, and repair pinned AI models from the non-blocking Model Manager.
 - Keep the default AI layout compact; colour controls expand only for advanced
   colour-key and hybrid modes, with a visible swatch beside each sampled hex value.
@@ -33,6 +36,37 @@ the local machine; the application does not upload them to a remote service.
 - Ship with DirectML and CPU fallback on Windows. CUDA/TensorRT adapters remain
   gated behind compatible runtimes and reproducible hardware validation.
 - Run fully offline after the verified models have been installed.
+
+## Download for Windows
+
+Download the latest verified installer from **[GitHub Releases](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)**:
+
+1. Download `KhongBietGiDungNoi_Setup_1.5.0.exe` and `SHA256SUMS.txt`.
+2. Optionally verify the installer before running it:
+
+   ```powershell
+   (Get-FileHash .\KhongBietGiDungNoi_Setup_1.5.0.exe -Algorithm SHA256).Hash
+   Get-Content .\SHA256SUMS.txt
+   ```
+
+3. Run the installer. Python is not required for the packaged application.
+
+The installer includes the pinned U²-Net models and DirectML runtime, so image
+processing works offline immediately after installation. Internet access is only
+needed when downloading a release or repairing a model from Model Manager. Images
+are never uploaded by the application.
+
+## Choosing a removal mode
+
+- **Automatic AI:** the best first choice for people, products, and a clear main
+  subject.
+- **Advanced colour key:** suited to reasonably uniform backgrounds; select
+  multiple background samples and tune edge protection when foreground colours
+  are similar.
+- **Hybrid AI + colour:** combines AI structure with sampled colours for difficult
+  studio or product images.
+- **Keep/Remove brushes:** correct compact mask areas with 20-step undo/redo when
+  automatic separation is not sufficient.
 
 ## Architecture
 
