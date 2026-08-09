@@ -69,6 +69,11 @@ build_installer.bat
 Binary sinh ra không được commit vào Git. Installer chính thức và file checksum
 sẽ được phát hành tại [GitHub Releases](https://github.com/Duongmike/Offline-Background-Remover/releases).
 
+Maintainer có thể chạy workflow Release thủ công để dry-run build mà không phát
+hành. Khi push tag `vMAJOR.MINOR.PATCH`, workflow chỉ tạo GitHub Release nếu tag
+khớp phiên bản canonical, toàn bộ test đạt, packaged self-test, UI smoke test,
+installer build và kiểm tra checksum đều thành công.
+
 ## Benchmark
 
 ```powershell
@@ -82,7 +87,7 @@ phần trăm chất lượng khi chưa có bộ dữ liệu ground-truth đượ
 ## Roadmap
 
 - [ ] Giao diện tiếng Anh và tiếng Việt, lưu lựa chọn ngôn ngữ
-- [ ] Quy trình phát hành theo tag có thể tái tạo
+- [x] Quy trình phát hành theo tag có thể tái tạo
 - [ ] Bộ dữ liệu regression chất lượng ảnh lớn hơn
 - [ ] Benchmark trên nhiều GPU và phần cứng hơn
 - [ ] Điểm mở rộng rõ ràng cho removal backend mới

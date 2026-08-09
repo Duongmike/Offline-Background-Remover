@@ -93,6 +93,11 @@ Generated applications and installers stay outside Git history. Published
 binaries belong in [GitHub Releases](https://github.com/Duongmike/Offline-Background-Remover/releases)
 with their SHA256 checksum.
 
+Maintainers can run the Release workflow manually as a build-only dry run. A
+tag matching `vMAJOR.MINOR.PATCH` publishes only after the tag matches the
+canonical application version, all tests pass, and the packaged self-test, UI
+smoke test, installer build, and checksum verification succeed.
+
 ## Benchmark
 
 The checked-in benchmark report documents the machine, providers, cold/warm
@@ -108,7 +113,7 @@ See [the benchmark report](benchmarks/BENCHMARK_REPORT_1.4.0.md).
 ## Roadmap
 
 - [ ] English and Vietnamese localization with persisted language selection
-- [ ] Reproducible tagged release workflow
+- [x] Reproducible tagged release workflow
 - [ ] Larger labelled image-quality regression dataset
 - [ ] More GPU and hardware benchmark coverage
 - [ ] Contributor-friendly plugin points for removal backends

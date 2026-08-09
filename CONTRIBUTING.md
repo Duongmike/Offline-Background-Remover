@@ -33,6 +33,12 @@ Update the release identity and version only in `image_tool/version.py`. The
 application, PyInstaller metadata, benchmark artifacts, Inno Setup installer,
 and checksum generation derive their release metadata from that module.
 
+Run the GitHub Release workflow manually to exercise the complete Windows build
+without publishing. Pushing a matching `vMAJOR.MINOR.PATCH` tag publishes the
+installer only after tests, packaged self-tests, the UI smoke test, and checksum
+verification pass. Never commit the generated `build`, `dist`, or `release`
+directories.
+
 ## Pull-request checklist
 
 - Add or update tests for observable behaviour changes.

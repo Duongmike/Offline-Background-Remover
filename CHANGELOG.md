@@ -18,6 +18,8 @@ follow [Semantic Versioning](https://semver.org/).
 - Hybrid U²-Net and colour-key removal.
 - Manual keep/remove mask brushes with compact undo and redo commands.
 - Benchmark coverage for colour-key and hybrid processing.
+- Reproducible tagged GitHub release automation with installer and checksum
+  verification before publishing.
 
 ### Changed
 
