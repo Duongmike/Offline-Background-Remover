@@ -10,8 +10,8 @@ Xóa Nền AI Offline is a Windows desktop application for AI background removal
 advanced colour-keying, batch processing, and image resizing. Images stay on
 the local machine; the application does not upload them to a remote service.
 
-> **Project status:** actively developed. The current application UI is in
-> Vietnamese; English localization is on the roadmap. Public APIs and UI details
+> **Project status:** actively developed. The application UI supports English
+> and Vietnamese with a persisted language selection. Public APIs and UI details
 > may change before the first stable release.
 
 ![Offline Background Remover user interface](ui_preview.png)
@@ -22,12 +22,16 @@ the local machine; the application does not upload them to a remote service.
 - Remove backgrounds with U²-Net, advanced colour-keying, or a hybrid strategy.
 - Use multiple background samples, a mask overlay, and keep/remove brushes with
   20-step undo and redo.
+- Switch the complete desktop workflow between English and Vietnamese without
+  restarting the application.
+- Verify, download, and repair pinned AI models from the non-blocking Model Manager.
 - Keep the default AI layout compact; colour controls expand only for advanced
   colour-key and hybrid modes, with a visible swatch beside each sampled hex value.
 - Resize by percentage, exact bounding box, or longest edge.
 - Keep the Tkinter UI responsive with background warm-up, cancellation, bounded
   queues, and atomic file replacement.
-- Prefer TensorRT/CUDA, CUDA, DirectML, then CPU, with explicit fallback events.
+- Ship with DirectML and CPU fallback on Windows. CUDA/TensorRT adapters remain
+  gated behind compatible runtimes and reproducible hardware validation.
 - Run fully offline after the verified models have been installed.
 
 ## Architecture
@@ -44,7 +48,7 @@ BatchImageService
              │
              ▼
 InferenceBackendManager
-    └── TensorRT/CUDA → CUDA → DirectML → CPU
+    └── shipped runtime: DirectML → CPU
 ```
 
 The pipeline keeps at most four full-resolution images in flight and owns only
@@ -68,7 +72,8 @@ run.bat
 
 `setup.bat` creates `.venv`, installs the constrained runtime dependencies, downloads
 the U²-Net models, and verifies their SHA256 digests. Subsequent processing is
-offline.
+offline. The in-app Model Manager can verify or repair the same pinned artifacts
+without blocking the Tkinter thread.
 
 ## Test
 
@@ -78,7 +83,25 @@ offline.
 
 The test suite covers resizing, Unicode paths, atomic output, cancellation,
 bounded queues, inference-provider fallback, PNG alpha preservation, advanced
-colour-keying, manual mask commands, and legacy-backend equivalence.
+colour-keying, manual mask commands, localization consistency, atomic settings,
+model integrity, quality metrics, and legacy-backend equivalence.
+
+## Quality regression
+
+The repository includes eight deterministic CC0 synthetic alpha fixtures. They
+exercise the evaluation pipeline and CI quality gate; they are not evidence of
+real-world segmentation quality.
+
+```powershell
+.venv\Scripts\python.exe -m image_tool.quality `
+  --manifest quality_dataset\starter\manifest.json `
+  --predictions quality_results\starter-u2netp `
+  --run-model u2netp `
+  --output quality_results\starter-u2netp.json
+```
+
+The report records MAE, SAD, IoU, F1, provider, platform, and per-case timings.
+See [quality dataset guidance](quality_dataset/README.md) before adding real images.
 
 ## Build the Windows installer
 
@@ -112,11 +135,12 @@ See [the benchmark report](benchmarks/BENCHMARK_REPORT_1.4.0.md).
 
 ## Roadmap
 
-- [ ] English and Vietnamese localization with persisted language selection
+- [x] English and Vietnamese localization with persisted language selection
 - [x] Reproducible tagged release workflow
 - [ ] Larger labelled image-quality regression dataset
 - [ ] More GPU and hardware benchmark coverage
-- [ ] Contributor-friendly plugin points for removal backends
+- [x] Checksummed in-app Model Manager
+- [ ] Contributor-friendly plugin points for additional removal backends
 
 Roadmap items are tracked as GitHub issues so contributors can discuss scope
 before implementation.

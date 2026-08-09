@@ -5,10 +5,6 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Planned
-
-- English and Vietnamese UI localization.
-
 ## [1.5.0] - 2026-08-08
 
 ### Added
@@ -20,6 +16,11 @@ follow [Semantic Versioning](https://semver.org/).
 - Benchmark coverage for colour-key and hybrid processing.
 - Reproducible tagged GitHub release automation with installer and checksum
   verification before publishing.
+- Complete English and Vietnamese UI localization with persisted language
+  selection and legacy-settings migration.
+- Non-blocking Model Manager with SHA256 verification and atomic repair downloads.
+- Licensed synthetic alpha-regression fixtures, MAE/SAD/IoU/F1 evaluator, and CI
+  quality gate.
 
 ### Changed
 

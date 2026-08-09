@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import ctypes
-import json
 import os
 import queue
 import subprocess
 import sys
 import threading
 import tkinter as tk
+import webbrowser
 from datetime import datetime
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from tkinter import filedialog, messagebox, ttk
 
 import numpy as np
@@ -37,7 +38,11 @@ from .backends import BackendEvent
 from .color_key import color_probability, median_color_sample, preview_to_original
 from .color_key_config import ColorKeyConfig, ColorSample
 from .manual_mask import ManualMaskEditor, MaskStroke
+from .localization import LANGUAGE_LABELS, LocalizationService, SUPPORTED_LANGUAGES
+from .model_catalog import MODEL_CATALOG
+from .model_manager import ModelRepository, ModelStatus
 from .processing import BatchImageService, describe_execution_backend, discover_images
+from .settings import JsonSettingsRepository
 from .version import APP_NAME
 from .version import APP_VERSION
 
@@ -78,7 +83,7 @@ def configure_runtime() -> None:
 
 
 class KhongBietGiDungNoiApp(BaseTk):
-    """Production-oriented Vietnamese desktop UI for local batch image processing."""
+    """Production-oriented bilingual desktop UI for local image processing."""
 
     COLORS = {
         "navy": "#081A33",
@@ -97,38 +102,13 @@ class KhongBietGiDungNoiApp(BaseTk):
         "danger": "#DC2626",
     }
 
-    RESIZE_LABELS = {
-        "Không thay đổi kích thước": ResizeMode.NONE,
-        "Theo phần trăm": ResizeMode.PERCENT,
-        "Vừa trong khung W × H": ResizeMode.EXACT,
-        "Giới hạn cạnh dài": ResizeMode.MAX_SIDE,
-    }
-
-    MODELS = {
-        "Chất lượng cao · U²-Net": "u2net",
-        "Tốc độ nhanh · U²-Net Lite": "u2netp",
-    }
-
-    REMOVAL_MODES = {
-        "AI tự động": "ai",
-        "Theo màu nâng cao": "color_key",
-        "Hybrid AI + màu": "hybrid",
-    }
-
-    INPUT_MODES = {
-        "Một ảnh": "single",
-        "Cả folder": "folder",
-    }
-
-    PNG_MODES = {
-        "Nhanh · lossless": PngCompressionMode.FAST,
-        "Cân bằng": PngCompressionMode.BALANCED,
-        "File nhỏ": PngCompressionMode.SMALL,
-    }
-
-    def __init__(self) -> None:
+    def __init__(self, settings_repository: JsonSettingsRepository | None = None) -> None:
         super().__init__()
-        self.title(f"{APP_NAME} — Xóa nền & Resize ảnh")
+        self._settings_repository = settings_repository or JsonSettingsRepository()
+        self._loaded_settings = self._settings_repository.load()
+        self._localization = LocalizationService(str(self._loaded_settings.get("language", "vi")))
+        self._configure_localized_catalogs()
+        self.title(self._t("app.title", app_name=APP_NAME))
         self.geometry("980x1020")
         self.minsize(900, 720)
         self.configure(bg=self.COLORS["canvas"])
@@ -155,24 +135,28 @@ class KhongBietGiDungNoiApp(BaseTk):
         self._last_processing_error: str | None = None
         self._execution_backend = describe_execution_backend()
         self._reported_provider: str | None = None
+        self._model_manager_window: tk.Toplevel | None = None
+        self._model_manager_worker: threading.Thread | None = None
+        self._model_cancel_event = threading.Event()
 
         self.input_var = tk.StringVar()
         self.output_var = tk.StringVar()
-        self.input_mode_var = tk.StringVar(value="Cả folder")
-        self.source_label_var = tk.StringVar(value="Folder đầu vào")
-        self.choose_input_text_var = tk.StringVar(value="Chọn folder")
+        self.language_var = tk.StringVar(value=LANGUAGE_LABELS[self._localization.language])
+        self.input_mode_var = tk.StringVar(value=self._label_for(self.INPUT_MODES, "folder"))
+        self.source_label_var = tk.StringVar(value=self._t("input.folder_label"))
+        self.choose_input_text_var = tk.StringVar(value=self._t("input.choose_folder"))
         self.output_hint_var = tk.StringVar(value="")
         self.remove_background_var = tk.BooleanVar(value=True)
         self.recursive_var = tk.BooleanVar(value=True)
         self.overwrite_var = tk.BooleanVar(value=False)
-        self.resize_mode_var = tk.StringVar(value="Không thay đổi kích thước")
+        self.resize_mode_var = tk.StringVar(value=self._label_for(self.RESIZE_LABELS, ResizeMode.NONE))
         self.percent_var = tk.StringVar(value="50")
         self.width_var = tk.StringVar(value="1024")
         self.height_var = tk.StringVar(value="1024")
         self.max_side_var = tk.StringVar(value="1024")
         self.keep_aspect_var = tk.BooleanVar(value=True)
-        self.model_var = tk.StringVar(value="Chất lượng cao · U²-Net")
-        self.removal_mode_var = tk.StringVar(value="AI tự động")
+        self.model_var = tk.StringVar(value=self._label_for(self.MODELS, "u2net"))
+        self.removal_mode_var = tk.StringVar(value=self._label_for(self.REMOVAL_MODES, "ai"))
         self.eyedropper_var = tk.BooleanVar(value=False)
         self.overlay_var = tk.BooleanVar(value=True)
         self.brush_mode_var = tk.StringVar(value="keep")
@@ -183,13 +167,13 @@ class KhongBietGiDungNoiApp(BaseTk):
         self.spill_suppression_var = tk.DoubleVar(value=0.35)
         self.connected_border_var = tk.BooleanVar(value=True)
         self.preload_var = tk.BooleanVar(value=True)
-        self.png_mode_var = tk.StringVar(value="Nhanh · lossless")
-        self.status_var = tk.StringVar(value="Sẵn sàng xử lý")
-        self.count_var = tk.StringVar(value="0 ảnh")
-        self.progress_detail_var = tk.StringVar(value="Chọn folder ảnh để bắt đầu")
-        self.runtime_var = tk.StringVar(value=f"{self._execution_backend} · CPU fallback · Không upload ảnh")
-        self.source_preview_meta_var = tk.StringVar(value="Chưa chọn ảnh")
-        self.result_preview_meta_var = tk.StringVar(value="Chưa xử lý")
+        self.png_mode_var = tk.StringVar(value=self._label_for(self.PNG_MODES, PngCompressionMode.FAST))
+        self.status_var = tk.StringVar(value=self._t("status.ready"))
+        self.count_var = tk.StringVar(value=self._t("count.zero"))
+        self.progress_detail_var = tk.StringVar(value=self._t("status.ready_hint"))
+        self.runtime_var = tk.StringVar(value=self._t("runtime.private", provider=f"{self._execution_backend} · CPU fallback"))
+        self.source_preview_meta_var = tk.StringVar(value=self._t("preview.not_selected"))
+        self.result_preview_meta_var = tk.StringVar(value=self._t("preview.not_processed"))
 
         self._configure_icon()
         self._configure_styles()
@@ -207,6 +191,42 @@ class KhongBietGiDungNoiApp(BaseTk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.after(100, self._poll_events)
         self.after(350, self._start_preload)
+
+    def _t(self, key: str, **values: object) -> str:
+        """Return localized UI text from the central translation repository."""
+        return self._localization.text(key, **values)
+
+    @staticmethod
+    def _label_for(mapping: dict[str, object], value: object) -> str:
+        """Return the localized label associated with one stable domain value."""
+        return next(label for label, candidate in mapping.items() if candidate == value)
+
+    def _configure_localized_catalogs(self) -> None:
+        """Build localized labels while preserving stable values in settings/domain logic."""
+        self.RESIZE_LABELS = {
+            self._t("resize.none"): ResizeMode.NONE,
+            self._t("resize.percent"): ResizeMode.PERCENT,
+            self._t("resize.exact"): ResizeMode.EXACT,
+            self._t("resize.max_side"): ResizeMode.MAX_SIDE,
+        }
+        self.MODELS = {
+            self._t("model.u2net"): "u2net",
+            self._t("model.u2netp"): "u2netp",
+        }
+        self.REMOVAL_MODES = {
+            self._t("removal.ai"): "ai",
+            self._t("removal.color_key"): "color_key",
+            self._t("removal.hybrid"): "hybrid",
+        }
+        self.INPUT_MODES = {
+            self._t("input.single"): "single",
+            self._t("input.folder"): "folder",
+        }
+        self.PNG_MODES = {
+            self._t("png.fast"): PngCompressionMode.FAST,
+            self._t("png.balanced"): PngCompressionMode.BALANCED,
+            self._t("png.small"): PngCompressionMode.SMALL,
+        }
 
     def _configure_icon(self) -> None:
         icon_png = resource_path("assets/app_icon_64.png")
@@ -304,8 +324,38 @@ class KhongBietGiDungNoiApp(BaseTk):
                 self._header_icon = None
 
         header.create_text(108, 30, text=APP_NAME.upper(), fill="white", font=("Segoe UI Semibold", 18), anchor=tk.W)
-        header.create_text(108, 58, text="Xóa nền AI & resize một ảnh hoặc hàng loạt — nhanh, riêng tư, chạy local", fill="#BDD5F4", font=("Segoe UI", 10), anchor=tk.W)
-        header.create_text(935, 26, text=f"v{APP_VERSION}", fill="#C7D8EE", font=("Segoe UI Semibold", 9), anchor=tk.E)
+        header.create_text(108, 58, text=self._t("app.tagline"), fill="#BDD5F4", font=("Segoe UI", 10), anchor=tk.W)
+        header.create_text(650, 26, text=f"v{APP_VERSION}", fill="#C7D8EE", font=("Segoe UI Semibold", 9), anchor=tk.E)
+        header.create_text(718, 28, text=self._t("language.label"), fill="#9FB8D7", font=("Segoe UI", 8), anchor=tk.E)
+        language_switch = tk.Frame(
+            header,
+            bg="#102A4B",
+            bd=0,
+            highlightbackground="#315477",
+            highlightthickness=1,
+        )
+        self.language_buttons: dict[str, tk.Button] = {}
+        for code in SUPPORTED_LANGUAGES:
+            selected = code == self._localization.language
+            button = tk.Button(
+                language_switch,
+                text=code.upper(),
+                command=lambda language=code: self._select_language(language),
+                bg=self.COLORS["cyan"] if selected else "#102A4B",
+                fg=self.COLORS["navy"] if selected else "#C7D8EE",
+                activebackground="#67E8F9" if selected else "#1B436F",
+                activeforeground=self.COLORS["navy"] if selected else "white",
+                disabledforeground="#6F89A8",
+                relief=tk.FLAT,
+                borderwidth=0,
+                highlightthickness=0,
+                cursor="hand2",
+                font=("Segoe UI Semibold", 8),
+                takefocus=True,
+            )
+            button.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            self.language_buttons[code] = button
+        header.create_window(734, 13, window=language_switch, anchor=tk.NW, width=112, height=30)
         self._backend_header_item = header.create_text(935, 52, text=self._execution_backend.upper(), fill=self.COLORS["cyan"], font=("Segoe UI Semibold", 9), anchor=tk.E)
 
     def _build_paths_card(self, parent: ttk.Frame) -> None:
@@ -313,7 +363,7 @@ class KhongBietGiDungNoiApp(BaseTk):
         card.grid(row=0, column=0, columnspan=2, sticky=tk.EW, pady=(0, 12))
         card.columnconfigure(1, weight=1)
 
-        ttk.Label(card, text="01  NGUỒN ẢNH", style="Section.TLabel").grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(card, text=self._t("section.source"), style="Section.TLabel").grid(row=0, column=0, sticky=tk.W)
         ttk.Label(card, textvariable=self.count_var, style="Count.TLabel").grid(row=0, column=2, sticky=tk.E)
 
         mode_controls = ttk.Frame(card, style="Card.TFrame")
@@ -339,20 +389,20 @@ class KhongBietGiDungNoiApp(BaseTk):
         )
         self.choose_input_button.grid(row=2, column=2, padx=(10, 0), pady=6)
 
-        self.output_label = ttk.Label(card, text="Folder đầu ra", style="Card.TLabel")
+        self.output_label = ttk.Label(card, text=self._t("input.output_folder"), style="Card.TLabel")
         self.output_label.grid(row=3, column=0, sticky=tk.W, padx=(0, 12), pady=6)
         self.output_entry = ttk.Entry(card, textvariable=self.output_var)
         self.output_entry.grid(row=3, column=1, sticky=tk.EW, pady=6)
-        self.choose_output_button = ttk.Button(card, text="Chọn folder", style="Secondary.TButton", command=self._choose_output)
+        self.choose_output_button = ttk.Button(card, text=self._t("input.choose_folder"), style="Secondary.TButton", command=self._choose_output)
         self.choose_output_button.grid(row=3, column=2, padx=(10, 0), pady=6)
 
         self.single_output_hint = ttk.Label(card, textvariable=self.output_hint_var, style="Muted.TLabel")
 
         self.folder_controls = ttk.Frame(card, style="Card.TFrame")
         self.folder_controls.grid(row=4, column=1, columnspan=2, sticky=tk.EW, pady=(8, 0))
-        ttk.Checkbutton(self.folder_controls, text="Bao gồm folder con", variable=self.recursive_var, command=self._refresh_count).pack(side=tk.LEFT)
-        ttk.Checkbutton(self.folder_controls, text="Ghi đè file đã tồn tại", variable=self.overwrite_var).pack(side=tk.LEFT, padx=(22, 0))
-        ttk.Label(self.folder_controls, text="Ảnh gốc luôn được giữ nguyên", style="Muted.TLabel").pack(side=tk.RIGHT)
+        ttk.Checkbutton(self.folder_controls, text=self._t("input.include_subfolders"), variable=self.recursive_var, command=self._refresh_count).pack(side=tk.LEFT)
+        ttk.Checkbutton(self.folder_controls, text=self._t("input.overwrite"), variable=self.overwrite_var).pack(side=tk.LEFT, padx=(22, 0))
+        ttk.Label(self.folder_controls, text=self._t("input.source_safe"), style="Muted.TLabel").pack(side=tk.RIGHT)
 
         if DND_FILES is not None:
             self.input_entry.drop_target_register(DND_FILES)
@@ -363,48 +413,51 @@ class KhongBietGiDungNoiApp(BaseTk):
         background_card.grid(row=1, column=0, sticky=tk.NSEW, padx=(0, 6), pady=(0, 12))
         background_card.columnconfigure(0, weight=1)
 
-        ttk.Label(background_card, text="02  XÓA NỀN AI", style="Section.TLabel").grid(row=0, column=0, sticky=tk.W)
-        ttk.Checkbutton(background_card, text="Bật xóa nền tự động", variable=self.remove_background_var, command=self._update_background_fields).grid(row=1, column=0, sticky=tk.W, pady=(14, 10))
-        ttk.Label(background_card, text="Phương pháp", style="Card.TLabel").grid(row=2, column=0, sticky=tk.W)
+        ttk.Label(background_card, text=self._t("section.background"), style="Section.TLabel").grid(row=0, column=0, sticky=tk.W)
+        ttk.Checkbutton(background_card, text=self._t("background.enabled"), variable=self.remove_background_var, command=self._update_background_fields).grid(row=1, column=0, sticky=tk.W, pady=(14, 10))
+        ttk.Label(background_card, text=self._t("background.method"), style="Card.TLabel").grid(row=2, column=0, sticky=tk.W)
         self.removal_combo = ttk.Combobox(background_card, textvariable=self.removal_mode_var, values=tuple(self.REMOVAL_MODES), state="readonly")
         self.removal_combo.grid(row=3, column=0, sticky=tk.EW, pady=(6, 8))
         self.removal_combo.bind("<<ComboboxSelected>>", lambda _event: self._update_background_fields())
-        ttk.Label(background_card, text="Mô hình xử lý", style="Card.TLabel").grid(row=4, column=0, sticky=tk.W)
+        model_header = ttk.Frame(background_card, style="Card.TFrame")
+        model_header.grid(row=4, column=0, sticky=tk.EW)
+        ttk.Label(model_header, text=self._t("background.model"), style="Card.TLabel").pack(side=tk.LEFT)
+        ttk.Button(model_header, text=self._t("model.manage"), style="Secondary.TButton", command=self._open_model_manager).pack(side=tk.RIGHT)
         self.model_combo = ttk.Combobox(background_card, textvariable=self.model_var, values=tuple(self.MODELS), state="readonly")
         self.model_combo.grid(row=5, column=0, sticky=tk.EW, pady=(6, 8))
         self.model_combo.bind("<<ComboboxSelected>>", self._on_model_changed)
-        ttk.Label(background_card, text="AI: U²-Net. Màu nâng cao chỉ xóa nền liên thông,\nưu tiên không làm mất lá/cọng/vật thể xanh.", style="Muted.TLabel", justify=tk.LEFT).grid(row=6, column=0, sticky=tk.W)
+        ttk.Label(background_card, text=self._t("background.description"), style="Muted.TLabel", justify=tk.LEFT).grid(row=6, column=0, sticky=tk.W)
         self.color_controls = ttk.Frame(background_card, style="Card.TFrame")
         self.color_controls.grid(row=7, column=0, sticky=tk.EW, pady=(10, 0))
         self.color_controls.columnconfigure(0, weight=1)
-        ttk.Button(self.color_controls, text="Chọn màu nền", style="Secondary.TButton", command=self._toggle_eyedropper).grid(row=0, column=0, sticky=tk.W)
-        ttk.Button(self.color_controls, text="Xóa mẫu", style="Secondary.TButton", command=self._clear_color_samples).grid(row=0, column=1, sticky=tk.E)
+        ttk.Button(self.color_controls, text=self._t("background.pick"), style="Secondary.TButton", command=self._toggle_eyedropper).grid(row=0, column=0, sticky=tk.W)
+        ttk.Button(self.color_controls, text=self._t("background.clear"), style="Secondary.TButton", command=self._clear_color_samples).grid(row=0, column=1, sticky=tk.E)
         self.samples_display = ttk.Frame(self.color_controls, style="Card.TFrame")
         self.samples_display.grid(row=1, column=0, columnspan=2, sticky=tk.EW, pady=(6, 6))
-        self.samples_var = tk.StringVar(value="Chưa có mẫu màu · Chọn ảnh đơn rồi bấm Chọn màu nền")
+        self.samples_var = tk.StringVar(value=self._t("background.no_samples"))
         ttk.Label(self.samples_display, textvariable=self.samples_var, style="Muted.TLabel", wraplength=350).pack(anchor=tk.W)
         self.sample_chips = ttk.Frame(self.samples_display, style="Card.TFrame")
         self.sample_chips.columnconfigure(0, weight=1)
         self.sample_chips.columnconfigure(1, weight=1)
-        self._add_color_slider(self.color_controls, "Độ tương đồng màu", self.color_similarity_var, 8, 80, 2)
-        self._add_color_slider(self.color_controls, "Độ mềm viền", self.edge_softness_var, 0, 6, 3)
-        self._add_color_slider(self.color_controls, "Bảo vệ cạnh", self.edge_protection_var, 0, 1, 4)
-        self._add_color_slider(self.color_controls, "Khử ám màu", self.spill_suppression_var, 0, 1, 5)
-        ttk.Checkbutton(self.color_controls, text="Chỉ xóa vùng liên thông với biên", variable=self.connected_border_var, command=self._schedule_overlay_refresh).grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
-        ttk.Checkbutton(self.color_controls, text="Hiện overlay mask đỏ/xanh", variable=self.overlay_var, command=self._schedule_overlay_refresh).grid(row=7, column=0, columnspan=2, sticky=tk.W)
+        self._add_color_slider(self.color_controls, self._t("background.similarity"), self.color_similarity_var, 8, 80, 2)
+        self._add_color_slider(self.color_controls, self._t("background.softness"), self.edge_softness_var, 0, 6, 3)
+        self._add_color_slider(self.color_controls, self._t("background.protection"), self.edge_protection_var, 0, 1, 4)
+        self._add_color_slider(self.color_controls, self._t("background.spill"), self.spill_suppression_var, 0, 1, 5)
+        ttk.Checkbutton(self.color_controls, text=self._t("background.connected"), variable=self.connected_border_var, command=self._schedule_overlay_refresh).grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
+        ttk.Checkbutton(self.color_controls, text=self._t("background.overlay"), variable=self.overlay_var, command=self._schedule_overlay_refresh).grid(row=7, column=0, columnspan=2, sticky=tk.W)
         brush_row = ttk.Frame(self.color_controls, style="Card.TFrame")
         brush_row.grid(row=8, column=0, columnspan=2, sticky=tk.EW, pady=(6, 0))
-        ttk.Radiobutton(brush_row, text="Giữ lại", variable=self.brush_mode_var, value="keep").pack(side=tk.LEFT)
-        ttk.Radiobutton(brush_row, text="Xóa thêm", variable=self.brush_mode_var, value="remove").pack(side=tk.LEFT, padx=(10, 0))
+        ttk.Radiobutton(brush_row, text=self._t("background.keep"), variable=self.brush_mode_var, value="keep").pack(side=tk.LEFT)
+        ttk.Radiobutton(brush_row, text=self._t("background.remove_more"), variable=self.brush_mode_var, value="remove").pack(side=tk.LEFT, padx=(10, 0))
         ttk.Scale(brush_row, from_=4, to=80, variable=self.brush_size_var, orient=tk.HORIZONTAL).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(10, 0))
         action_row = ttk.Frame(self.color_controls, style="Card.TFrame")
         action_row.grid(row=9, column=0, columnspan=2, sticky=tk.EW, pady=(6, 0))
         ttk.Button(action_row, text="Undo", style="Secondary.TButton", command=self._undo_manual).pack(side=tk.LEFT)
         ttk.Button(action_row, text="Redo", style="Secondary.TButton", command=self._redo_manual).pack(side=tk.LEFT, padx=(6, 0))
-        ttk.Button(action_row, text="Tự nhận diện lại", style="Secondary.TButton", command=self._schedule_overlay_refresh).pack(side=tk.RIGHT)
+        ttk.Button(action_row, text=self._t("background.redetect"), style="Secondary.TButton", command=self._schedule_overlay_refresh).pack(side=tk.RIGHT)
         ttk.Checkbutton(
             background_card,
-            text="Chuẩn bị AI trong nền khi mở app",
+            text=self._t("background.preload"),
             variable=self.preload_var,
             command=self._on_preload_changed,
         ).grid(row=8, column=0, sticky=tk.W, pady=(10, 0))
@@ -412,7 +465,7 @@ class KhongBietGiDungNoiApp(BaseTk):
         resize_card = ttk.Frame(parent, style="Card.TFrame", padding=16)
         resize_card.grid(row=1, column=1, sticky=tk.NSEW, padx=(6, 0), pady=(0, 12))
         resize_card.columnconfigure(0, weight=1)
-        ttk.Label(resize_card, text="03  RESIZE ẢNH", style="Section.TLabel").grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(resize_card, text=self._t("section.resize"), style="Section.TLabel").grid(row=0, column=0, sticky=tk.W)
         self.resize_combo = ttk.Combobox(resize_card, textvariable=self.resize_mode_var, values=tuple(self.RESIZE_LABELS), state="readonly")
         self.resize_combo.grid(row=1, column=0, sticky=tk.EW, pady=(14, 10))
         self.resize_combo.bind("<<ComboboxSelected>>", lambda _event: self._update_resize_fields())
@@ -422,18 +475,18 @@ class KhongBietGiDungNoiApp(BaseTk):
         self.resize_fields.columnconfigure(1, weight=1)
         self.resize_fields.columnconfigure(3, weight=1)
 
-        self.percent_label = ttk.Label(self.resize_fields, text="Tỷ lệ (%)", style="Card.TLabel")
+        self.percent_label = ttk.Label(self.resize_fields, text=self._t("resize.ratio"), style="Card.TLabel")
         self.percent_entry = ttk.Entry(self.resize_fields, textvariable=self.percent_var, width=10)
-        self.width_label = ttk.Label(self.resize_fields, text="Rộng", style="Card.TLabel")
+        self.width_label = ttk.Label(self.resize_fields, text=self._t("resize.width"), style="Card.TLabel")
         self.width_entry = ttk.Entry(self.resize_fields, textvariable=self.width_var, width=10)
-        self.height_label = ttk.Label(self.resize_fields, text="Cao", style="Card.TLabel")
+        self.height_label = ttk.Label(self.resize_fields, text=self._t("resize.height"), style="Card.TLabel")
         self.height_entry = ttk.Entry(self.resize_fields, textvariable=self.height_var, width=10)
-        self.aspect_check = ttk.Checkbutton(self.resize_fields, text="Giữ tỷ lệ, không crop", variable=self.keep_aspect_var)
-        self.max_side_label = ttk.Label(self.resize_fields, text="Cạnh dài tối đa (px)", style="Card.TLabel")
+        self.aspect_check = ttk.Checkbutton(self.resize_fields, text=self._t("resize.keep_aspect"), variable=self.keep_aspect_var)
+        self.max_side_label = ttk.Label(self.resize_fields, text=self._t("resize.max_side_label"), style="Card.TLabel")
         self.max_side_entry = ttk.Entry(self.resize_fields, textvariable=self.max_side_var, width=12)
-        self.resize_hint = ttk.Label(resize_card, text="Lanczos chất lượng cao · Không upscale ở chế độ cạnh dài", style="Muted.TLabel")
+        self.resize_hint = ttk.Label(resize_card, text=self._t("resize.hint"), style="Muted.TLabel")
         self.resize_hint.grid(row=3, column=0, sticky=tk.W, pady=(8, 0))
-        ttk.Label(resize_card, text="Nén PNG", style="Card.TLabel").grid(row=4, column=0, sticky=tk.W, pady=(10, 4))
+        ttk.Label(resize_card, text=self._t("resize.png"), style="Card.TLabel").grid(row=4, column=0, sticky=tk.W, pady=(10, 4))
         self.png_mode_combo = ttk.Combobox(
             resize_card,
             textvariable=self.png_mode_var,
@@ -450,7 +503,7 @@ class KhongBietGiDungNoiApp(BaseTk):
 
         title_row = ttk.Frame(card, style="Card.TFrame")
         title_row.grid(row=0, column=0, sticky=tk.EW)
-        ttk.Label(title_row, text="04  TIẾN TRÌNH", style="Section.TLabel").pack(side=tk.LEFT)
+        ttk.Label(title_row, text=self._t("section.progress"), style="Section.TLabel").pack(side=tk.LEFT)
         ttk.Label(title_row, textvariable=self.status_var, style="Muted.TLabel").pack(side=tk.RIGHT)
 
         self.progress = ttk.Progressbar(card, style="Blue.Horizontal.TProgressbar", mode="determinate", maximum=100)
@@ -461,8 +514,8 @@ class KhongBietGiDungNoiApp(BaseTk):
         self.preview_frame.grid(row=3, column=0, sticky=tk.NSEW)
         self.preview_frame.columnconfigure(0, weight=1, uniform="preview")
         self.preview_frame.columnconfigure(1, weight=1, uniform="preview")
-        self._build_preview_panel(self.preview_frame, 0, "source", "ẢNH GỐC", self.source_preview_meta_var)
-        self._build_preview_panel(self.preview_frame, 1, "result", "KẾT QUẢ", self.result_preview_meta_var)
+        self._build_preview_panel(self.preview_frame, 0, "source", self._t("preview.source"), self.source_preview_meta_var)
+        self._build_preview_panel(self.preview_frame, 1, "result", self._t("preview.result"), self.result_preview_meta_var)
 
         self.log_frame = tk.Frame(card, bg="#0B1628", highlightthickness=0)
         self.log_frame.grid(row=3, column=0, sticky=tk.NSEW)
@@ -480,11 +533,11 @@ class KhongBietGiDungNoiApp(BaseTk):
 
         buttons = ttk.Frame(card, style="Card.TFrame")
         buttons.grid(row=4, column=0, sticky=tk.EW, pady=(12, 0))
-        self.open_output_button = ttk.Button(buttons, text="Mở folder kết quả", style="Secondary.TButton", command=self._open_output, state=tk.DISABLED)
+        self.open_output_button = ttk.Button(buttons, text=self._t("action.open_folder"), style="Secondary.TButton", command=self._open_output, state=tk.DISABLED)
         self.open_output_button.pack(side=tk.LEFT)
-        self.cancel_button = ttk.Button(buttons, text="Dừng xử lý", style="Danger.TButton", command=self._cancel, state=tk.DISABLED)
+        self.cancel_button = ttk.Button(buttons, text=self._t("action.stop"), style="Danger.TButton", command=self._cancel, state=tk.DISABLED)
         self.cancel_button.pack(side=tk.RIGHT, padx=(0, 8))
-        self.run_button = ttk.Button(buttons, text=PRIMARY_ACTION_TEXT, style="Accent.TButton", command=self._start)
+        self.run_button = ttk.Button(buttons, text=self._t("action.run"), style="Accent.TButton", command=self._start)
         self.run_button.pack(side=tk.RIGHT)
 
     def _build_preview_panel(
@@ -510,7 +563,7 @@ class KhongBietGiDungNoiApp(BaseTk):
         )
         canvas.grid(row=1, column=0, sticky=tk.EW)
         self._draw_checkerboard(canvas, 400, 180)
-        canvas.create_text(200, 90, text="Chưa có ảnh", fill=self.COLORS["muted"], font=("Segoe UI", 10), tags="preview_content")
+        canvas.create_text(200, 90, text=self._t("preview.empty"), fill=self.COLORS["muted"], font=("Segoe UI", 10), tags="preview_content")
         setattr(self, f"{kind}_preview_canvas", canvas)
         if kind == "source":
             canvas.bind("<ButtonPress-1>", self._on_source_canvas_down)
@@ -539,14 +592,186 @@ class KhongBietGiDungNoiApp(BaseTk):
         ttk.Label(footer, text="PNG · JPG · WEBP · BMP · TIFF", style="Footer.TLabel").pack(side=tk.LEFT)
         ttk.Label(footer, textvariable=self.runtime_var, style="Footer.TLabel").pack(side=tk.RIGHT)
 
+    def _on_language_changed(self, _event: object | None = None) -> None:
+        """Switch languages immediately while keeping canonical selections stable."""
+        selected_code = next(
+            (code for code, label in LANGUAGE_LABELS.items() if label == self.language_var.get()),
+            self._localization.language,
+        )
+        if selected_code == self._localization.language:
+            return
+        if (self._worker is not None and self._worker.is_alive()) or (
+            self._model_manager_worker is not None and self._model_manager_worker.is_alive()
+        ):
+            self.language_var.set(LANGUAGE_LABELS[self._localization.language])
+            return
+
+        selections = {
+            "input": self.INPUT_MODES.get(self.input_mode_var.get(), "folder"),
+            "resize": self.RESIZE_LABELS.get(self.resize_mode_var.get(), ResizeMode.NONE),
+            "model": self.MODELS.get(self.model_var.get(), "u2net"),
+            "removal": self.REMOVAL_MODES.get(self.removal_mode_var.get(), "ai"),
+            "png": self.PNG_MODES.get(self.png_mode_var.get(), PngCompressionMode.FAST),
+        }
+        if self._model_manager_window is not None and self._model_manager_window.winfo_exists():
+            self._model_manager_window.destroy()
+        self._model_manager_window = None
+        self._localization.set_language(selected_code)
+        self._configure_localized_catalogs()
+        self.input_mode_var.set(self._label_for(self.INPUT_MODES, selections["input"]))
+        self.resize_mode_var.set(self._label_for(self.RESIZE_LABELS, selections["resize"]))
+        self.model_var.set(self._label_for(self.MODELS, selections["model"]))
+        self.removal_mode_var.set(self._label_for(self.REMOVAL_MODES, selections["removal"]))
+        self.png_mode_var.set(self._label_for(self.PNG_MODES, selections["png"]))
+        self.language_var.set(LANGUAGE_LABELS[selected_code])
+        self.status_var.set(self._t("status.ready"))
+        self.progress_detail_var.set(self._t("status.ready_hint"))
+        self.runtime_var.set(self._t("runtime.private", provider=self._execution_backend))
+        self.source_preview_meta_var.set(self._t("preview.not_selected"))
+        self.result_preview_meta_var.set(self._t("preview.not_processed"))
+        self.title(self._t("app.title", app_name=APP_NAME))
+        for child in self.winfo_children():
+            child.destroy()
+        self._configure_styles()
+        self._build_ui()
+        self._update_input_mode()
+        self._update_resize_fields()
+        self._update_background_fields()
+        self._refresh_color_sample_chips()
+        self._save_settings()
+
+    def _select_language(self, language: str) -> None:
+        """Apply a language selected from the compact header control."""
+        if language not in SUPPORTED_LANGUAGES:
+            return
+        self.language_var.set(LANGUAGE_LABELS[language])
+        self._on_language_changed()
+
+    def _open_model_manager(self) -> None:
+        """Open a non-blocking model status and repair window."""
+        if self._model_manager_window is not None and self._model_manager_window.winfo_exists():
+            self._model_manager_window.lift()
+            return
+        window = tk.Toplevel(self)
+        self._model_manager_window = window
+        window.title(self._t("model_manager.title"))
+        window.geometry("720x330")
+        window.minsize(620, 300)
+        window.transient(self)
+        window.configure(bg=self.COLORS["canvas"])
+        body = ttk.Frame(window, style="App.TFrame", padding=18)
+        body.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(body, text=self._t("model_manager.title"), style="Section.TLabel").pack(anchor=tk.W)
+        ttk.Label(body, text=self._t("model_manager.description"), style="Footer.TLabel", wraplength=660).pack(anchor=tk.W, pady=(5, 12))
+        columns = ("name", "size", "status")
+        self._model_tree = ttk.Treeview(body, columns=columns, show="headings", height=5, selectmode="browse")
+        self._model_tree.heading("name", text=self._t("model_manager.name"))
+        self._model_tree.heading("size", text=self._t("model_manager.size"))
+        self._model_tree.heading("status", text=self._t("model_manager.status"))
+        self._model_tree.column("name", width=260)
+        self._model_tree.column("size", width=100, anchor=tk.E)
+        self._model_tree.column("status", width=180)
+        self._model_tree.pack(fill=tk.BOTH, expand=True)
+        for model_id, artifact in MODEL_CATALOG.items():
+            self._model_tree.insert(
+                "", tk.END, iid=model_id,
+                values=(self._t(artifact.display_key), self._format_file_size(artifact.expected_size), self._t("model_manager.working")),
+            )
+        self._model_tree.selection_set(self.MODELS.get(self.model_var.get(), "u2net"))
+        footer = ttk.Frame(body, style="App.TFrame")
+        footer.pack(fill=tk.X, pady=(12, 0))
+        self._model_manager_message = tk.StringVar(value=self._t("model_manager.working"))
+        ttk.Label(footer, textvariable=self._model_manager_message, style="Footer.TLabel").pack(side=tk.LEFT)
+        ttk.Button(footer, text=self._t("model_manager.close"), style="Secondary.TButton", command=window.destroy).pack(side=tk.RIGHT)
+        self._model_repair_button = ttk.Button(footer, text=self._t("model_manager.repair"), style="Accent.TButton", command=self._repair_selected_model)
+        self._model_repair_button.pack(side=tk.RIGHT, padx=(0, 8))
+        self._model_tree.bind("<Double-1>", lambda _event: self._open_selected_model_license())
+        window.protocol("WM_DELETE_WINDOW", window.destroy)
+        self._refresh_model_statuses()
+
+    def _open_selected_model_license(self) -> None:
+        """Open the upstream license for the selected model."""
+        if not hasattr(self, "_model_tree"):
+            return
+        selection = self._model_tree.selection()
+        if selection and selection[0] in MODEL_CATALOG:
+            webbrowser.open(MODEL_CATALOG[selection[0]].license_url)
+
+    def _refresh_model_statuses(self) -> None:
+        """Hash model files in a worker so the model window never blocks Tk."""
+        if self._model_manager_worker is not None and self._model_manager_worker.is_alive():
+            return
+        repository = ModelRepository(resource_path("assets/models"))
+        self._model_cancel_event.clear()
+
+        def inspect_worker() -> None:
+            try:
+                statuses = {model_id: repository.inspect(artifact, self._model_cancel_event) for model_id, artifact in MODEL_CATALOG.items()}
+                self._events.put(("model_statuses", statuses))
+            except Exception as exc:
+                self._events.put(("model_error", str(exc)))
+
+        self._model_manager_worker = threading.Thread(target=inspect_worker, daemon=True, name="model-status-worker")
+        self._model_manager_worker.start()
+
+    def _repair_selected_model(self) -> None:
+        """Download and verify the selected model in a background worker."""
+        if self._model_manager_worker is not None and self._model_manager_worker.is_alive():
+            return
+        selection = self._model_tree.selection() if hasattr(self, "_model_tree") else ()
+        if not selection or selection[0] not in MODEL_CATALOG:
+            return
+        model_id = selection[0]
+        artifact = MODEL_CATALOG[model_id]
+        repository = ModelRepository(resource_path("assets/models"))
+        self._model_cancel_event.clear()
+        self._model_repair_button.configure(state=tk.DISABLED)
+        self._model_manager_message.set(self._t("model_manager.working"))
+
+        def on_progress(received: int, total: int | None) -> None:
+            percent = int(received * 100 / total) if total else 0
+            self._events.put(("model_progress", (model_id, percent)))
+
+        def repair_worker() -> None:
+            try:
+                repository.install(artifact, cancel_event=self._model_cancel_event, on_progress=on_progress)
+                self._events.put(("model_done", model_id))
+            except Exception as exc:
+                self._events.put(("model_error", str(exc)))
+
+        self._model_manager_worker = threading.Thread(target=repair_worker, daemon=True, name="model-install-worker")
+        self._model_manager_worker.start()
+
+    def _show_model_statuses(self, statuses: object) -> None:
+        """Render worker-produced model status snapshots on Tk."""
+        self._model_manager_worker = None
+        if not isinstance(statuses, dict) or self._model_manager_window is None or not self._model_manager_window.winfo_exists():
+            return
+        for model_id, status in statuses.items():
+            if model_id not in MODEL_CATALOG or not isinstance(status, ModelStatus):
+                continue
+            artifact = MODEL_CATALOG[model_id]
+            state_key = {
+                "installed": "model_manager.installed",
+                "invalid": "model_manager.invalid",
+                "missing": "model_manager.missing",
+            }.get(status.state, "model_manager.missing")
+            size = self._format_file_size(status.size or artifact.expected_size)
+            self._model_tree.item(model_id, values=(self._t(artifact.display_key), size, self._t(state_key)))
+        self._model_repair_button.configure(state=tk.NORMAL)
+        selected = self._model_tree.selection()
+        if selected:
+            artifact = MODEL_CATALOG[selected[0]]
+            self._model_manager_message.set(self._t("model_manager.license", license_name=artifact.license_name))
+
     def _choose_input(self) -> None:
         if self._is_single_mode():
             selected = filedialog.askopenfilename(
-                title="Chọn một ảnh",
+                title=self._t("dialog.choose_image"),
                 filetypes=self._image_filetypes(),
             )
         else:
-            selected = filedialog.askdirectory(title="Chọn folder chứa ảnh")
+            selected = filedialog.askdirectory(title=self._t("dialog.choose_input_folder"))
         if not selected:
             return
         input_path = Path(selected)
@@ -557,7 +782,7 @@ class KhongBietGiDungNoiApp(BaseTk):
         self._refresh_count()
 
     def _choose_output(self) -> None:
-        selected = filedialog.askdirectory(title="Chọn folder lưu kết quả", mustexist=False)
+        selected = filedialog.askdirectory(title=self._t("dialog.choose_output_folder"), mustexist=False)
         if selected:
             self.output_var.set(selected)
 
@@ -571,22 +796,22 @@ class KhongBietGiDungNoiApp(BaseTk):
         if self._preview_after_id is not None:
             self.after_cancel(self._preview_after_id)
             self._preview_after_id = None
-        self._set_preview_placeholder("result", "Chưa xử lý", "Chưa xử lý")
+        self._set_preview_placeholder("result", self._t("preview.not_processed"), self._t("preview.not_processed"))
 
         if not self._is_single_mode():
             return
         source = Path(self.input_var.get().strip())
         if not source.is_file() or source.suffix.lower() not in SUPPORTED_IMAGE_EXTENSIONS:
-            self._set_preview_placeholder("source", "Chọn hoặc kéo thả một ảnh", "Chưa chọn ảnh")
+            self._set_preview_placeholder("source", self._t("preview.choose"), self._t("preview.not_selected"))
             return
         generation = self._preview_generation["source"]
-        self._set_preview_placeholder("source", "Đang tải preview…", source.name)
+        self._set_preview_placeholder("source", self._t("preview.loading"), source.name)
         self._preview_after_id = self.after(220, lambda: self._start_preview_loader("source", source, generation))
 
     def _request_result_preview(self, result: Path) -> None:
         self._preview_generation["result"] += 1
         generation = self._preview_generation["result"]
-        self._set_preview_placeholder("result", "Đang tạo preview…", result.name)
+        self._set_preview_placeholder("result", self._t("preview.generating"), result.name)
         self._start_preview_loader("result", result, generation)
 
     def _start_preview_loader(self, kind: str, path: Path, generation: int) -> None:
@@ -627,7 +852,7 @@ class KhongBietGiDungNoiApp(BaseTk):
                 preview.close()
             return
         if error or not isinstance(preview, Image.Image):
-            self._set_preview_placeholder(str(kind), "Không thể đọc preview", "File ảnh không hợp lệ")
+            self._set_preview_placeholder(str(kind), self._t("preview.read_error"), self._t("preview.invalid"))
             return
 
         canvas: tk.Canvas = getattr(self, f"{kind}_preview_canvas")
@@ -662,11 +887,11 @@ class KhongBietGiDungNoiApp(BaseTk):
     def _toggle_eyedropper(self) -> None:
         """Enable/disable image-space background colour sampling on the source preview."""
         if not self._is_single_mode() or not Path(self.input_var.get().strip()).is_file():
-            messagebox.showinfo("Chọn màu nền", "Hãy chuyển sang Một ảnh và chọn ảnh trước khi lấy mẫu màu nền.", parent=self)
+            messagebox.showinfo(self._t("dialog.pick_title"), self._t("dialog.pick_message"), parent=self)
             return
         enabled = not self.eyedropper_var.get()
         self.eyedropper_var.set(enabled)
-        self.progress_detail_var.set("Click lên preview ảnh gốc để lấy mẫu median 5×5." if enabled else "Đã tắt chọn màu nền.")
+        self.progress_detail_var.set(self._t("eyedropper.enabled") if enabled else self._t("eyedropper.disabled"))
 
     def _clear_color_samples(self) -> None:
         """Clear selected background samples without modifying the source image."""
@@ -680,13 +905,13 @@ class KhongBietGiDungNoiApp(BaseTk):
             child.destroy()
 
         if not self._color_samples:
-            self.samples_var.set("Chưa có mẫu màu · Chọn ảnh đơn rồi bấm Chọn màu nền")
+            self.samples_var.set(self._t("background.no_samples"))
             self.sample_chips.pack_forget()
             return
 
         visible_samples = self._color_samples[-5:]
-        suffix = " · hiển thị 5 mẫu gần nhất" if len(self._color_samples) > 5 else ""
-        self.samples_var.set(f"{len(self._color_samples)} mẫu màu{suffix}")
+        suffix = self._t("background.recent_samples") if len(self._color_samples) > 5 else ""
+        self.samples_var.set(self._t("background.sample_count", count=len(self._color_samples), suffix=suffix))
         self.sample_chips.pack(fill=tk.X, pady=(4, 0))
         for index, sample in enumerate(visible_samples):
             chip = ttk.Frame(self.sample_chips, style="Card.TFrame")
@@ -862,10 +1087,10 @@ class KhongBietGiDungNoiApp(BaseTk):
 
     def _update_input_mode(self) -> None:
         single_mode = self._is_single_mode()
-        self.source_label_var.set("Ảnh đầu vào" if single_mode else "Folder đầu vào")
-        self.choose_input_text_var.set("Chọn ảnh" if single_mode else "Chọn folder")
-        self.run_button.configure(text=PRIMARY_ACTION_TEXT)
-        self.open_output_button.configure(text="Mở vị trí ảnh" if single_mode else "Mở folder kết quả")
+        self.source_label_var.set(self._t("input.image_label") if single_mode else self._t("input.folder_label"))
+        self.choose_input_text_var.set(self._t("input.choose_image") if single_mode else self._t("input.choose_folder"))
+        self.run_button.configure(text=self._t("action.run"))
+        self.open_output_button.configure(text=self._t("action.open_image") if single_mode else self._t("action.open_folder"))
 
         if single_mode:
             self.log_frame.grid_remove()
@@ -874,9 +1099,9 @@ class KhongBietGiDungNoiApp(BaseTk):
             self.output_entry.grid_remove()
             self.choose_output_button.grid_remove()
             self.folder_controls.grid_remove()
-            self.output_hint_var.set(f"Kéo thả ảnh vào ô trên hoặc chọn ảnh · Nơi lưu sẽ được hỏi sau khi bấm {PRIMARY_ACTION_TEXT}")
+            self.output_hint_var.set(self._t("hint.single_output", action=self._t("action.run")))
             self.single_output_hint.grid(row=3, column=1, columnspan=2, sticky=tk.W, pady=(5, 8))
-            self.progress_detail_var.set("Chọn hoặc kéo thả một ảnh để bắt đầu")
+            self.progress_detail_var.set(self._t("status.single_hint"))
             self._schedule_source_preview()
         else:
             self.preview_frame.grid_remove()
@@ -889,28 +1114,28 @@ class KhongBietGiDungNoiApp(BaseTk):
             self.choose_output_button.grid()
             self.folder_controls.grid()
             self.output_hint_var.set("")
-            self.progress_detail_var.set("Chọn folder ảnh để bắt đầu")
+            self.progress_detail_var.set(self._t("status.ready_hint"))
         self._refresh_count()
 
     def _on_drop(self, event: object) -> str:
         data = getattr(event, "data", "")
         dropped = self.tk.splitlist(data)
         if len(dropped) != 1:
-            messagebox.showwarning("Chỉ chọn một nguồn", "Hãy kéo thả đúng một ảnh hoặc một folder.", parent=self)
+            messagebox.showwarning(self._t("dialog.drop_one_title"), self._t("dialog.drop_one_message"), parent=self)
             return "break"
 
         path = Path(dropped[0])
         if path.is_dir():
-            self.input_mode_var.set("Cả folder")
+            self.input_mode_var.set(self._label_for(self.INPUT_MODES, "folder"))
             self.input_var.set(str(path))
             current_output = self.output_var.get().strip()
             if not current_output or not Path(current_output).is_absolute():
                 self.output_var.set(str(path.parent / f"{path.name}_ket_qua"))
         elif path.is_file() and path.suffix.lower() in SUPPORTED_IMAGE_EXTENSIONS:
-            self.input_mode_var.set("Một ảnh")
+            self.input_mode_var.set(self._label_for(self.INPUT_MODES, "single"))
             self.input_var.set(str(path))
         else:
-            messagebox.showerror("File không được hỗ trợ", "Hãy thả file PNG, JPG, WEBP, BMP hoặc TIFF.", parent=self)
+            messagebox.showerror(self._t("dialog.unsupported_title"), self._t("dialog.unsupported_message"), parent=self)
             return "break"
 
         self._update_input_mode()
@@ -919,11 +1144,10 @@ class KhongBietGiDungNoiApp(BaseTk):
     def _is_single_mode(self) -> bool:
         return self.INPUT_MODES.get(self.input_mode_var.get()) == "single"
 
-    @staticmethod
-    def _image_filetypes() -> list[tuple[str, str]]:
+    def _image_filetypes(self) -> list[tuple[str, str]]:
         return [
-            ("Ảnh được hỗ trợ", "*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff"),
-            ("Tất cả file", "*.*"),
+            (self._t("dialog.supported_images"), "*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff"),
+            (self._t("dialog.all_files"), "*.*"),
         ]
 
     def _schedule_count_refresh(self) -> None:
@@ -936,18 +1160,18 @@ class KhongBietGiDungNoiApp(BaseTk):
         input_path = Path(self.input_var.get().strip())
         if self._is_single_mode():
             is_supported = input_path.is_file() and input_path.suffix.lower() in SUPPORTED_IMAGE_EXTENSIONS
-            self.count_var.set("1 ảnh" if is_supported else "Chưa chọn ảnh")
+            self.count_var.set(self._t("count.one") if is_supported else self._t("count.none"))
             return
         if not input_path.is_dir():
-            self.count_var.set("0 ảnh")
+            self.count_var.set(self._t("count.zero"))
             return
         output_text = self.output_var.get().strip()
         excluded = Path(output_text) if output_text else None
         try:
             count = len(discover_images(input_path, self.recursive_var.get(), excluded))
-            self.count_var.set(f"{count:,} ảnh".replace(",", "."))
+            self.count_var.set(self._t("count.many", count=f"{count:,}".replace(",", ".")))
         except OSError:
-            self.count_var.set("Không thể đọc")
+            self.count_var.set(self._t("count.unreadable"))
 
     def _update_background_fields(self) -> None:
         enabled = self.remove_background_var.get()
@@ -989,8 +1213,8 @@ class KhongBietGiDungNoiApp(BaseTk):
         if self._preload_worker is not None and self._preload_worker.is_alive():
             return
         model_name = self.MODELS[self.model_var.get()]
-        self.status_var.set("Đang chuẩn bị AI")
-        self.progress_detail_var.set("Đang preload và warm-up model trong nền · Bạn vẫn có thể thao tác")
+        self.status_var.set(self._t("status.ai_preparing"))
+        self.progress_detail_var.set(self._t("status.ai_preparing_hint"))
 
         def preload_worker() -> None:
             try:
@@ -1025,9 +1249,9 @@ class KhongBietGiDungNoiApp(BaseTk):
         input_text = self.input_var.get().strip()
         output_text = self.output_var.get().strip()
         if not input_text:
-            raise ValueError("Hãy chọn folder đầu vào.")
+            raise ValueError(self._t("error.choose_input_folder"))
         if not output_text:
-            raise ValueError("Hãy chọn folder đầu ra.")
+            raise ValueError(self._t("error.choose_output_folder"))
 
         options = BatchOptions(
             input_directory=Path(input_text),
@@ -1051,19 +1275,19 @@ class KhongBietGiDungNoiApp(BaseTk):
             try:
                 parsed = int(value)
             except ValueError as exc:
-                raise ValueError(f"{label} phải là số nguyên.") from exc
+                raise ValueError(self._t("error.integer", label=label)) from exc
             if parsed < 1:
-                raise ValueError(f"{label} phải lớn hơn 0.")
+                raise ValueError(self._t("error.positive", label=label))
             return parsed
 
         resize_mode = self.RESIZE_LABELS[self.resize_mode_var.get()]
         return ResizeOptions(
             mode=resize_mode,
-            percent=positive_int(self.percent_var.get(), "Tỷ lệ") if resize_mode == ResizeMode.PERCENT else 100,
-            width=positive_int(self.width_var.get(), "Chiều rộng") if resize_mode == ResizeMode.EXACT else 1024,
-            height=positive_int(self.height_var.get(), "Chiều cao") if resize_mode == ResizeMode.EXACT else 1024,
+            percent=positive_int(self.percent_var.get(), self._t("resize.ratio")) if resize_mode == ResizeMode.PERCENT else 100,
+            width=positive_int(self.width_var.get(), self._t("resize.width")) if resize_mode == ResizeMode.EXACT else 1024,
+            height=positive_int(self.height_var.get(), self._t("resize.height")) if resize_mode == ResizeMode.EXACT else 1024,
             keep_aspect_ratio=self.keep_aspect_var.get(),
-            max_side=positive_int(self.max_side_var.get(), "Cạnh dài") if resize_mode == ResizeMode.MAX_SIDE else 1024,
+            max_side=positive_int(self.max_side_var.get(), self._t("resize.max_side_label")) if resize_mode == ResizeMode.MAX_SIDE else 1024,
         )
 
     def _build_single_options(self, output_file: Path, resize: ResizeOptions) -> SingleImageOptions:
@@ -1088,11 +1312,11 @@ class KhongBietGiDungNoiApp(BaseTk):
         suffix = ".png" if remove_background else source.suffix.lower()
         action_label = "tach_nen" if remove_background else "da_xu_ly"
         selected = filedialog.asksaveasfilename(
-            title="Chọn nơi lưu ảnh kết quả",
+            title=self._t("dialog.choose_destination"),
             initialdir=str(source.parent),
             initialfile=f"{source.stem}_{action_label}{suffix}",
             defaultextension=suffix,
-            filetypes=[("Ảnh PNG", "*.png")] if remove_background else self._image_filetypes(),
+            filetypes=[(self._t("dialog.png_image"), "*.png")] if remove_background else self._image_filetypes(),
             confirmoverwrite=True,
         )
         if not selected:
@@ -1107,10 +1331,10 @@ class KhongBietGiDungNoiApp(BaseTk):
             if self._is_single_mode():
                 source = Path(self.input_var.get().strip())
                 if not source.is_file() or source.suffix.lower() not in SUPPORTED_IMAGE_EXTENSIONS:
-                    raise ValueError("Hãy chọn một ảnh PNG, JPG, WEBP, BMP hoặc TIFF.")
+                    raise ValueError(self._t("error.choose_supported_image"))
                 resize = self._build_resize_options()
                 if not self.remove_background_var.get() and resize.mode == ResizeMode.NONE:
-                    raise ValueError("Hãy bật ít nhất một chức năng: xóa nền hoặc resize.")
+                    raise ValueError(self._t("error.choose_action"))
                 destination = self._choose_single_destination(source)
                 if destination is None:
                     return
@@ -1120,16 +1344,16 @@ class KhongBietGiDungNoiApp(BaseTk):
                 options = self._build_options()
                 image_count = len(discover_images(options.input_directory, options.recursive, options.output_directory))
                 if image_count == 0:
-                    raise ValueError("Không tìm thấy ảnh được hỗ trợ trong folder đầu vào.")
+                    raise ValueError(self._t("error.no_images"))
         except (ValueError, OSError) as exc:
-            messagebox.showerror("Cấu hình chưa hợp lệ", str(exc), parent=self)
+            messagebox.showerror(self._t("dialog.invalid_config_title"), str(exc), parent=self)
             return
 
         try:
             output_directory = options.output_file.parent if isinstance(options, SingleImageOptions) else options.output_directory
             output_directory.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            messagebox.showerror("Không thể tạo folder", f"Không thể tạo folder đầu ra:\n{exc}", parent=self)
+            messagebox.showerror(self._t("dialog.create_folder_title"), self._t("dialog.create_folder_message", error=exc), parent=self)
             return
 
         self._last_output_file = options.output_file if isinstance(options, SingleImageOptions) else None
@@ -1141,14 +1365,14 @@ class KhongBietGiDungNoiApp(BaseTk):
         self._last_processing_error = None
         if isinstance(options, SingleImageOptions):
             self._preview_generation["result"] += 1
-            self._set_preview_placeholder("result", "Đang chờ xử lý…", options.output_file.name)
-        source_summary = "Đã chọn 1 ảnh" if isinstance(options, SingleImageOptions) else f"Đã tìm thấy {image_count} ảnh"
+            self._set_preview_placeholder("result", self._t("preview.waiting"), options.output_file.name)
+        source_summary = self._t("processing.found_one") if isinstance(options, SingleImageOptions) else self._t("processing.found_many", count=image_count)
         self._append_log(f"{source_summary} · Engine: {self._execution_backend}", "info")
         if options.remove_background:
-            self.progress_detail_var.set(f"Đang nạp mô hình AI vào {self._execution_backend}…")
+            self.progress_detail_var.set(self._t("processing.loading_ai", provider=self._execution_backend))
         else:
-            self.progress_detail_var.set("Đang chuẩn bị bộ xử lý resize…")
-        self.status_var.set("Đang xử lý")
+            self.progress_detail_var.set(self._t("processing.preparing_resize"))
+        self.status_var.set(self._t("status.processing"))
         self.run_button.configure(state=tk.DISABLED)
         self.cancel_button.configure(state=tk.NORMAL)
         self.open_output_button.configure(state=tk.DISABLED)
@@ -1171,8 +1395,8 @@ class KhongBietGiDungNoiApp(BaseTk):
     def _cancel(self) -> None:
         self._cancel_event.set()
         self.cancel_button.configure(state=tk.DISABLED)
-        self.status_var.set("Đang dừng")
-        self.progress_detail_var.set("Tool sẽ dừng an toàn sau ảnh đang xử lý…")
+        self.status_var.set(self._t("status.stopping"))
+        self.progress_detail_var.set(self._t("status.stopping_hint"))
 
     def _poll_events(self) -> None:
         try:
@@ -1211,14 +1435,30 @@ class KhongBietGiDungNoiApp(BaseTk):
                     self._preload_worker = None
                     self._update_actual_provider(str(payload))
                     if self._worker is None:
-                        self.status_var.set("AI đã sẵn sàng")
-                        self.progress_detail_var.set("Model đã warm-up · Ảnh đầu tiên không phải chờ nạp model")
+                        self.status_var.set(self._t("status.ai_ready"))
+                        self.progress_detail_var.set(self._t("status.ai_ready_hint"))
                 elif event_name == "preload_error":
                     self._preload_worker = None
                     if not self._closing:
-                        self.status_var.set("Sẵn sàng xử lý")
-                        self.progress_detail_var.set("Preload chưa thành công · App sẽ tự fallback khi xử lý")
+                        self.status_var.set(self._t("status.ready"))
+                        self.progress_detail_var.set(self._t("status.preload_failed"))
                         self._append_log(f"PRELOAD  {payload}", "skip")
+                elif event_name == "model_statuses":
+                    self._show_model_statuses(payload)
+                elif event_name == "model_progress" and isinstance(payload, tuple) and len(payload) == 2:
+                    model_id, percent = payload
+                    if self._model_manager_window is not None and self._model_manager_window.winfo_exists() and model_id in MODEL_CATALOG:
+                        self._model_manager_message.set(self._t("model_manager.progress", name=self._t(MODEL_CATALOG[model_id].display_key), percent=percent))
+                elif event_name == "model_done" and isinstance(payload, str):
+                    self._model_manager_worker = None
+                    if self._model_manager_window is not None and self._model_manager_window.winfo_exists() and payload in MODEL_CATALOG:
+                        self._model_manager_message.set(self._t("model_manager.success", name=self._t(MODEL_CATALOG[payload].display_key)))
+                        self._refresh_model_statuses()
+                elif event_name == "model_error":
+                    self._model_manager_worker = None
+                    if self._model_manager_window is not None and self._model_manager_window.winfo_exists():
+                        self._model_manager_message.set(self._t("model_manager.failure", error=payload))
+                        self._model_repair_button.configure(state=tk.NORMAL)
         except queue.Empty:
             pass
         if self.winfo_exists():
@@ -1228,16 +1468,16 @@ class KhongBietGiDungNoiApp(BaseTk):
         self._update_actual_provider(progress.execution_provider)
         percent = progress.completed * 100 / max(1, progress.total)
         self.progress.configure(value=percent)
-        self.progress_detail_var.set(f"{progress.completed}/{progress.total} · {progress.source.name}")
-        if progress.error and "bỏ qua" in progress.error.casefold():
-            self._append_log(f"BỎ QUA  {progress.source.name} — {progress.error}", "skip")
+        self.progress_detail_var.set(self._t("processing.progress", completed=progress.completed, total=progress.total, name=progress.source.name))
+        if progress.error and any(marker in progress.error.casefold() for marker in ("bỏ qua", "skip")):
+            self._append_log(f"{self._t('log.skip')}  {progress.source.name} — {progress.error}", "skip")
         elif progress.error:
             self._last_processing_error = progress.error
-            self._append_log(f"LỖI     {progress.source.name} — {progress.error}", "error")
+            self._append_log(f"{self._t('log.error')}     {progress.source.name} — {progress.error}", "error")
             if self._last_output_file is not None and progress.destination == self._last_output_file:
-                self._set_preview_placeholder("result", "Xử lý không thành công", progress.error)
+                self._set_preview_placeholder("result", self._t("preview.failed"), progress.error)
         else:
-            self._append_log(f"XONG     {progress.source.name}", "ok")
+            self._append_log(f"{self._t('log.done')}     {progress.source.name}", "ok")
             if self._last_output_file is not None and progress.destination == self._last_output_file:
                 self._request_result_preview(progress.destination)
 
@@ -1252,12 +1492,12 @@ class KhongBietGiDungNoiApp(BaseTk):
             "CPUExecutionProvider": "CPU fallback",
         }
         label = labels.get(provider, provider)
-        self.runtime_var.set(f"{label} · Không upload ảnh")
+        self.runtime_var.set(self._t("runtime.private", provider=label))
         self._header_canvas.itemconfigure(self._backend_header_item, text=label.upper())
         if provider == "CPUExecutionProvider" and self._execution_backend.startswith("GPU"):
-            self._append_log("GPU không tương thích trong phiên này · Đã tự chuyển sang CPU an toàn", "skip")
+            self._append_log(self._t("log.gpu_fallback"), "skip")
         else:
-            self._append_log(f"Provider thực tế: {label}", "info")
+            self._append_log(self._t("log.provider", provider=label), "info")
 
     def _show_backend_event(self, event: BackendEvent) -> None:
         """Mirror backend activation and fallback details into the Vietnamese UI log."""
@@ -1270,32 +1510,32 @@ class KhongBietGiDungNoiApp(BaseTk):
         self._set_idle()
         if result.cancelled:
             self.open_output_button.configure(state=tk.NORMAL if result.succeeded else tk.DISABLED)
-            self.status_var.set("Đã dừng")
-            self.progress_detail_var.set(f"Đã xử lý {result.succeeded}/{result.total} ảnh trước khi dừng")
-            self._append_log("Phiên xử lý đã được dừng an toàn.", "skip")
+            self.status_var.set(self._t("status.stopped"))
+            self.progress_detail_var.set(self._t("processing.cancelled", succeeded=result.succeeded, total=result.total))
+            self._append_log(self._t("processing.cancelled_log"), "skip")
             return
 
         self.progress.configure(value=100)
         self.open_output_button.configure(state=tk.NORMAL if result.succeeded else tk.DISABLED)
-        self.status_var.set("Hoàn tất")
-        summary = f"{result.succeeded} thành công · {result.failed} lỗi · {result.skipped} bỏ qua"
+        self.status_var.set(self._t("status.completed"))
+        summary = self._t("processing.summary", succeeded=result.succeeded, failed=result.failed, skipped=result.skipped)
         self.progress_detail_var.set(summary)
-        self._append_log(f"HOÀN TẤT  {summary}", "info")
+        self._append_log(f"{self._t('log.complete')}  {summary}", "info")
         if result.succeeded == 0:
-            detail = f"\n\nChi tiết: {self._last_processing_error}" if self._last_processing_error else ""
-            messagebox.showerror("Xử lý không thành công", f"Không tạo được ảnh kết quả.\n\n{summary}{detail}", parent=self)
+            detail = self._t("processing.detail", error=self._last_processing_error) if self._last_processing_error else ""
+            messagebox.showerror(self._t("dialog.processing_failed_title"), self._t("dialog.processing_failed_message", summary=summary, detail=detail), parent=self)
             return
         saved_at = self._last_output_file or self._last_output_directory
-        messagebox.showinfo("Xử lý hoàn tất", f"{APP_NAME} đã xử lý xong.\n\n{summary}\n\nKết quả được lưu tại:\n{saved_at}", parent=self)
+        messagebox.showinfo(self._t("dialog.completed_title"), self._t("dialog.completed_message", app_name=APP_NAME, summary=summary, path=saved_at), parent=self)
 
     def _show_fatal(self, error: str) -> None:
         self._set_idle()
-        self.status_var.set("Có lỗi")
-        self.progress_detail_var.set("Không thể hoàn thành phiên xử lý")
-        self._append_log(f"LỖI HỆ THỐNG  {error}", "error")
+        self.status_var.set(self._t("status.error"))
+        self.progress_detail_var.set(self._t("status.fatal_hint"))
+        self._append_log(f"{self._t('log.system_error')}  {error}", "error")
         if self._last_output_file is not None:
-            self._set_preview_placeholder("result", "Xử lý không thành công", error)
-        messagebox.showerror("Không thể xử lý", error, parent=self)
+            self._set_preview_placeholder("result", self._t("preview.failed"), error)
+        messagebox.showerror(self._t("dialog.processing_failed_title"), error, parent=self)
 
     def _set_idle(self) -> None:
         self.run_button.configure(state=tk.NORMAL)
@@ -1308,7 +1548,7 @@ class KhongBietGiDungNoiApp(BaseTk):
             return
         directory = self._last_output_directory or Path(self.output_var.get().strip())
         if not directory.is_dir():
-            messagebox.showwarning("Folder không tồn tại", "Chưa có folder kết quả để mở.", parent=self)
+            messagebox.showwarning(self._t("dialog.open_missing_title"), self._t("dialog.open_missing_message"), parent=self)
             return
         if sys.platform == "win32":
             os.startfile(directory)  # type: ignore[attr-defined]
@@ -1329,35 +1569,48 @@ class KhongBietGiDungNoiApp(BaseTk):
         self.log.see(tk.END)
         self.log.configure(state=tk.DISABLED)
 
-    def _settings_path(self) -> Path:
-        base = Path(os.getenv("APPDATA", Path.home()))
-        return base / "KhongBietGiDungNoi" / "settings.json"
-
     def _load_settings(self) -> None:
-        path = self._settings_path()
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError, TypeError):
-            legacy_path = Path(os.getenv("APPDATA", Path.home())) / "TachNenPro" / "settings.json"
-            try:
-                data = json.loads(legacy_path.read_text(encoding="utf-8"))
-            except (OSError, ValueError, TypeError):
-                return
+        data = self._loaded_settings
+        if not data:
+            return
 
         self.input_var.set(str(data.get("input", "")))
         self.output_var.set(str(data.get("output", "")))
-        if data.get("input_mode") in self.INPUT_MODES:
-            self.input_mode_var.set(data["input_mode"])
+        input_mode = str(data.get("input_mode", "folder"))
+        legacy_input = {"Một ảnh": "single", "Cả folder": "folder"}
+        input_mode = legacy_input.get(input_mode, input_mode)
+        if input_mode in self.INPUT_MODES.values():
+            self.input_mode_var.set(self._label_for(self.INPUT_MODES, input_mode))
         self.remove_background_var.set(bool(data.get("remove_background", True)))
         self.recursive_var.set(bool(data.get("recursive", True)))
         self.overwrite_var.set(bool(data.get("overwrite", False)))
-        if data.get("resize_mode") in self.RESIZE_LABELS:
-            self.resize_mode_var.set(data["resize_mode"])
-        if data.get("model") in self.MODELS:
-            self.model_var.set(data["model"])
+        resize_value = data.get("resize_mode", ResizeMode.NONE.value)
+        legacy_resize = {"Không thay đổi kích thước": "none", "Theo phần trăm": "percent", "Vừa trong khung W × H": "exact", "Giới hạn cạnh dài": "max_side"}
+        resize_value = legacy_resize.get(str(resize_value), str(resize_value))
+        try:
+            resize_mode = ResizeMode(resize_value)
+        except ValueError:
+            resize_mode = ResizeMode.NONE
+        self.resize_mode_var.set(self._label_for(self.RESIZE_LABELS, resize_mode))
+        model_value = str(data.get("model", "u2net"))
+        legacy_models = {"Chất lượng cao · U²-Net": "u2net", "Tốc độ nhanh · U²-Net Lite": "u2netp"}
+        model_value = legacy_models.get(model_value, model_value)
+        if model_value in self.MODELS.values():
+            self.model_var.set(self._label_for(self.MODELS, model_value))
+        removal_value = str(data.get("removal_mode", "ai"))
+        legacy_removal = {"AI tự động": "ai", "Theo màu nâng cao": "color_key", "Hybrid AI + màu": "hybrid"}
+        removal_value = legacy_removal.get(removal_value, removal_value)
+        if removal_value in self.REMOVAL_MODES.values():
+            self.removal_mode_var.set(self._label_for(self.REMOVAL_MODES, removal_value))
         self.preload_var.set(bool(data.get("preload_model", True)))
-        if data.get("png_mode") in self.PNG_MODES:
-            self.png_mode_var.set(data["png_mode"])
+        png_value = str(data.get("png_mode", PngCompressionMode.FAST.value))
+        legacy_png = {"Nhanh · lossless": "fast", "Cân bằng": "balanced", "File nhỏ": "small"}
+        png_value = legacy_png.get(png_value, png_value)
+        try:
+            png_mode = PngCompressionMode(png_value)
+            self.png_mode_var.set(self._label_for(self.PNG_MODES, png_mode))
+        except ValueError:
+            pass
         for variable, key in ((self.percent_var, "percent"), (self.width_var, "width"), (self.height_var, "height"), (self.max_side_var, "max_side")):
             if key in data:
                 variable.set(str(data[key]))
@@ -1368,47 +1621,49 @@ class KhongBietGiDungNoiApp(BaseTk):
         data = {
             "input": self.input_var.get(),
             "output": self.output_var.get(),
-            "input_mode": self.input_mode_var.get(),
+            "language": self._localization.language,
+            "input_mode": self.INPUT_MODES.get(self.input_mode_var.get(), "folder"),
             "remove_background": self.remove_background_var.get(),
             "recursive": self.recursive_var.get(),
             "overwrite": self.overwrite_var.get(),
-            "resize_mode": self.resize_mode_var.get(),
-            "model": self.model_var.get(),
+            "resize_mode": self.RESIZE_LABELS.get(self.resize_mode_var.get(), ResizeMode.NONE).value,
+            "model": self.MODELS.get(self.model_var.get(), "u2net"),
+            "removal_mode": self.REMOVAL_MODES.get(self.removal_mode_var.get(), "ai"),
             "preload_model": self.preload_var.get(),
-            "png_mode": self.png_mode_var.get(),
+            "png_mode": self.PNG_MODES.get(self.png_mode_var.get(), PngCompressionMode.FAST).value,
             "percent": self.percent_var.get(),
             "width": self.width_var.get(),
             "height": self.height_var.get(),
             "max_side": self.max_side_var.get(),
             "keep_aspect": self.keep_aspect_var.get(),
         }
-        path = self._settings_path()
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            self._settings_repository.save(data)
         except OSError as exc:
             if hasattr(self, "log"):
-                self._append_log(f"CẤU HÌNH Không thể lưu thiết lập: {exc}", "skip")
+                self._append_log(self._t("settings.save_failed", error=exc), "skip")
 
     def _on_close(self) -> None:
         if self._closing:
             return
         if self._worker is not None and self._worker.is_alive():
-            should_close = messagebox.askyesno("Đang xử lý", "Một phiên xử lý đang chạy. Bạn có muốn dừng và thoát?", parent=self)
+            should_close = messagebox.askyesno(self._t("dialog.close_title"), self._t("dialog.close_message"), parent=self)
             if not should_close:
                 return
             self._cancel_event.set()
         self._closing = True
+        self._model_cancel_event.set()
         self._service.request_shutdown()
         self._save_settings()
-        self.status_var.set("Đang đóng an toàn")
+        self.status_var.set(self._t("status.closing"))
         self.after(50, self._finish_close)
 
     def _finish_close(self) -> None:
         """Destroy Tk only after processing and preload workers release native resources."""
         worker_alive = self._worker is not None and self._worker.is_alive()
         preload_alive = self._preload_worker is not None and self._preload_worker.is_alive()
-        if worker_alive or preload_alive:
+        model_worker_alive = self._model_manager_worker is not None and self._model_manager_worker.is_alive()
+        if worker_alive or preload_alive or model_worker_alive:
             self.after(100, self._finish_close)
             return
         self._service.close()
@@ -1431,29 +1686,29 @@ def run() -> None:
 
 
 def run_ui_smoke_test() -> int:
-    """Exercise contextual colour controls in the real Tk UI, then close safely."""
-    app = KhongBietGiDungNoiApp()
+    """Exercise bilingual contextual controls in the real Tk UI, then close safely."""
+    temporary_settings = TemporaryDirectory(prefix="background-remover-ui-smoke-")
+    settings_root = Path(temporary_settings.name)
+    repository = JsonSettingsRepository(settings_root / "settings.json", settings_root / "legacy.json")
+    app = KhongBietGiDungNoiApp(repository)
     errors: list[str] = []
-    original_remove_background = app.remove_background_var.get()
-    original_removal_mode = app.removal_mode_var.get()
-    original_input_mode = app.input_mode_var.get()
 
     def verify_contextual_controls() -> None:
         try:
             for input_mode in app.INPUT_MODES:
                 app.input_mode_var.set(input_mode)
                 app._update_input_mode()
-                if app.run_button.cget("text") != PRIMARY_ACTION_TEXT:
+                if app.run_button.cget("text") != app._t("action.run"):
                     raise RuntimeError(f"Primary action text is inconsistent in {input_mode!r} mode.")
 
             app.remove_background_var.set(True)
-            app.removal_mode_var.set("AI tự động")
+            app.removal_mode_var.set(app._label_for(app.REMOVAL_MODES, "ai"))
             app._update_background_fields()
             app.update_idletasks()
             if app.color_controls.winfo_manager():
                 raise RuntimeError("Colour controls must be collapsed in AI mode.")
 
-            app.removal_mode_var.set("Theo màu nâng cao")
+            app.removal_mode_var.set(app._label_for(app.REMOVAL_MODES, "color_key"))
             app._update_background_fields()
             app.update_idletasks()
             if app.color_controls.winfo_manager() != "grid":
@@ -1464,27 +1719,42 @@ def run_ui_smoke_test() -> int:
             if len(app.sample_chips.winfo_children()) != 2:
                 raise RuntimeError("Each selected colour must render one visible swatch.")
 
-            app.removal_mode_var.set("Hybrid AI + màu")
+            app.removal_mode_var.set(app._label_for(app.REMOVAL_MODES, "hybrid"))
             app._update_background_fields()
             app.update_idletasks()
             if app.color_controls.winfo_manager() != "grid":
                 raise RuntimeError("Colour controls must be visible in hybrid mode.")
 
-            app.removal_mode_var.set("AI tự động")
+            app.removal_mode_var.set(app._label_for(app.REMOVAL_MODES, "ai"))
             app._update_background_fields()
             app.update_idletasks()
             if app.color_controls.winfo_manager():
                 raise RuntimeError("Colour controls must collapse after returning to AI mode.")
+
+            if set(app.language_buttons) != set(SUPPORTED_LANGUAGES):
+                raise RuntimeError("Language switch did not render every supported language.")
+            app._select_language("en")
+            app.update_idletasks()
+            if app.run_button.cget("text") != "START PROCESSING":
+                raise RuntimeError("English language option did not update the primary action.")
+            if app._localization.language != "en":
+                raise RuntimeError("English language selection was not applied.")
+            if app.language_buttons["en"].cget("background") != app.COLORS["cyan"]:
+                raise RuntimeError("Selected language is not visually highlighted.")
+            if "Background removal" not in app.title():
+                raise RuntimeError("English window title was not applied.")
+            app._open_model_manager()
+            app.update_idletasks()
+            if len(app._model_tree.get_children()) != len(MODEL_CATALOG):
+                raise RuntimeError("Model Manager did not list every catalog model.")
         except Exception as exc:
             errors.append(str(exc))
         finally:
-            app.remove_background_var.set(original_remove_background)
-            app.removal_mode_var.set(original_removal_mode)
-            app.input_mode_var.set(original_input_mode)
             app._on_close()
 
     app.after(100, verify_contextual_controls)
     app.mainloop()
+    temporary_settings.cleanup()
     if errors:
         print(f"UI smoke test failed: {errors[0]}", file=sys.stderr)
         return 1

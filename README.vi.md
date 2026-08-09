@@ -6,8 +6,8 @@ Xóa Nền AI Offline là ứng dụng desktop Windows để xóa nền AI, tác
 màu nâng cao, xử lý hàng loạt và resize ảnh. Ảnh chỉ được xử lý trên máy của
 người dùng, không tải lên dịch vụ bên ngoài.
 
-> **Trạng thái:** dự án đang được phát triển tích cực. Giao diện hiện tại dùng
-> tiếng Việt; bản địa hóa tiếng Anh đang nằm trong roadmap.
+> **Trạng thái:** dự án đang được phát triển tích cực. Giao diện hỗ trợ đầy đủ
+> English và Tiếng Việt, đồng thời lưu lựa chọn ngôn ngữ của người dùng.
 
 ![Giao diện Offline Background Remover](ui_preview.png)
 
@@ -16,11 +16,14 @@ người dùng, không tải lên dịch vụ bên ngoài.
 - Xử lý một ảnh hoặc cả folder và giữ nguyên cấu trúc folder con.
 - Ba chiến lược xóa nền: AI tự động, theo màu nâng cao và Hybrid AI + màu.
 - Nhiều mẫu nền, overlay mask, cọ Giữ lại/Xóa thêm, Undo/Redo 20 lệnh.
+- Chuyển toàn bộ workflow desktop giữa English và Tiếng Việt mà không cần mở lại app.
+- Kiểm tra, tải và sửa model đã ghim SHA256 bằng Model Manager chạy nền.
 - Giao diện AI mặc định gọn; bộ điều khiển màu chỉ mở ở chế độ Theo màu/Hybrid
   và hiển thị ô màu trực quan cạnh mã hex của từng mẫu.
 - Resize theo phần trăm, khung W × H hoặc giới hạn cạnh dài.
 - Preload AI trong background, cancellation, back-pressure và atomic save.
-- Ưu tiên TensorRT/CUDA → CUDA → DirectML → CPU và fallback an toàn.
+- Bản phân phối Windows dùng DirectML → CPU fallback. Adapter CUDA/TensorRT chỉ
+  được bật khi có runtime tương thích và benchmark phần cứng tái lập được.
 - Chạy hoàn toàn offline sau lần cài đặt model đầu tiên.
 
 ## Kiến trúc
@@ -37,7 +40,7 @@ BatchImageService
              │
              ▼
 InferenceBackendManager
-    └── TensorRT/CUDA → CUDA → DirectML → CPU
+    └── runtime phân phối: DirectML → CPU
 ```
 
 Pipeline giới hạn tối đa bốn ảnh full-resolution đang xử lý và chỉ giữ một ONNX
@@ -56,7 +59,8 @@ run.bat
 ```
 
 `setup.bat` tạo `.venv`, cài dependencies, tải model U²-Net và kiểm tra SHA256.
-Sau khi setup xong, app không cần Internet để xử lý ảnh.
+Sau khi setup xong, app không cần Internet để xử lý ảnh. Model Manager trong app
+có thể kiểm tra hoặc sửa các model đã ghim mà không khóa Tkinter UI.
 
 ## Test và build
 
@@ -84,12 +88,29 @@ Xem phương pháp đo, environment, stage timings và giới hạn của kết 
 [báo cáo benchmark](benchmarks/BENCHMARK_REPORT_1.4.0.md). Dự án không tuyên bố
 phần trăm chất lượng khi chưa có bộ dữ liệu ground-truth được gắn nhãn.
 
+## Quality regression
+
+Repo chứa tám fixture alpha synthetic CC0 có thể tái tạo. Bộ này dùng để kiểm tra
+evaluator và quality gate trong CI, không phải bằng chứng chất lượng ảnh thực tế.
+
+```powershell
+.venv\Scripts\python.exe -m image_tool.quality `
+  --manifest quality_dataset\starter\manifest.json `
+  --predictions quality_results\starter-u2netp `
+  --run-model u2netp `
+  --output quality_results\starter-u2netp.json
+```
+
+Report ghi MAE, SAD, IoU, F1, provider, platform và timing từng case. Đọc
+[hướng dẫn quality dataset](quality_dataset/README.md) trước khi thêm ảnh thật.
+
 ## Roadmap
 
-- [ ] Giao diện tiếng Anh và tiếng Việt, lưu lựa chọn ngôn ngữ
+- [x] Giao diện English và Tiếng Việt, lưu lựa chọn ngôn ngữ
 - [x] Quy trình phát hành theo tag có thể tái tạo
 - [ ] Bộ dữ liệu regression chất lượng ảnh lớn hơn
 - [ ] Benchmark trên nhiều GPU và phần cứng hơn
+- [x] Model Manager có kiểm tra SHA256
 - [ ] Điểm mở rộng rõ ràng cho removal backend mới
 
 ## Đóng góp
