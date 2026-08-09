@@ -108,7 +108,7 @@ class KhongBietGiDungNoiApp(BaseTk):
         self._loaded_settings = self._settings_repository.load()
         self._localization = LocalizationService(str(self._loaded_settings.get("language", "vi")))
         self._configure_localized_catalogs()
-        self.title(self._t("app.title", app_name=APP_NAME))
+        self.title(self._t("app.title", app_name=self._t("app.name")))
         self.geometry("980x1020")
         self.minsize(900, 720)
         self.configure(bg=self.COLORS["canvas"])
@@ -323,7 +323,14 @@ class KhongBietGiDungNoiApp(BaseTk):
             except tk.TclError:
                 self._header_icon = None
 
-        header.create_text(108, 30, text=APP_NAME.upper(), fill="white", font=("Segoe UI Semibold", 18), anchor=tk.W)
+        self._header_name_item = header.create_text(
+            108,
+            30,
+            text=self._t("app.name").upper(),
+            fill="white",
+            font=("Segoe UI Semibold", 18),
+            anchor=tk.W,
+        )
         header.create_text(108, 58, text=self._t("app.tagline"), fill="#BDD5F4", font=("Segoe UI", 10), anchor=tk.W)
         header.create_text(650, 26, text=f"v{APP_VERSION}", fill="#C7D8EE", font=("Segoe UI Semibold", 9), anchor=tk.E)
         header.create_text(718, 28, text=self._t("language.label"), fill="#9FB8D7", font=("Segoe UI", 8), anchor=tk.E)
@@ -629,7 +636,7 @@ class KhongBietGiDungNoiApp(BaseTk):
         self.runtime_var.set(self._t("runtime.private", provider=self._execution_backend))
         self.source_preview_meta_var.set(self._t("preview.not_selected"))
         self.result_preview_meta_var.set(self._t("preview.not_processed"))
-        self.title(self._t("app.title", app_name=APP_NAME))
+        self.title(self._t("app.title", app_name=self._t("app.name")))
         for child in self.winfo_children():
             child.destroy()
         self._configure_styles()
@@ -1526,7 +1533,16 @@ class KhongBietGiDungNoiApp(BaseTk):
             messagebox.showerror(self._t("dialog.processing_failed_title"), self._t("dialog.processing_failed_message", summary=summary, detail=detail), parent=self)
             return
         saved_at = self._last_output_file or self._last_output_directory
-        messagebox.showinfo(self._t("dialog.completed_title"), self._t("dialog.completed_message", app_name=APP_NAME, summary=summary, path=saved_at), parent=self)
+        messagebox.showinfo(
+            self._t("dialog.completed_title"),
+            self._t(
+                "dialog.completed_message",
+                app_name=self._t("app.name"),
+                summary=summary,
+                path=saved_at,
+            ),
+            parent=self,
+        )
 
     def _show_fatal(self, error: str) -> None:
         self._set_idle()
@@ -1743,6 +1759,8 @@ def run_ui_smoke_test() -> int:
                 raise RuntimeError("Selected language is not visually highlighted.")
             if "Background removal" not in app.title():
                 raise RuntimeError("English window title was not applied.")
+            if app._header_canvas.itemcget(app._header_name_item, "text") != "OFFLINE BACKGROUND REMOVER":
+                raise RuntimeError("English application name was not applied to the header.")
             app._open_model_manager()
             app.update_idletasks()
             if len(app._model_tree.get_children()) != len(MODEL_CATALOG):

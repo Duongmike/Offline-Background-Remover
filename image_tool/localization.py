@@ -12,6 +12,7 @@ LANGUAGE_LABELS = {"en": "English", "vi": "Tiếng Việt"}
 
 
 EN: dict[str, str] = {
+    "app.name": "Offline Background Remover",
     "app.title": "{app_name} — Background removal & image resize",
     "app.tagline": "AI background removal and resize for one image or a batch — fast, private, local",
     "language.label": "Language",
@@ -177,6 +178,7 @@ EN: dict[str, str] = {
 
 
 VI: dict[str, str] = {
+    "app.name": "Xóa Nền AI Offline",
     "app.title": "{app_name} — Xóa nền & Resize ảnh",
     "app.tagline": "Xóa nền AI & resize một ảnh hoặc hàng loạt — nhanh, riêng tư, chạy local",
     "language.label": "Ngôn ngữ",

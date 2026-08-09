@@ -20,6 +20,21 @@ class LocalizationTests(unittest.TestCase):
         service.set_language("vi")
         self.assertEqual("BẮT ĐẦU XỬ LÝ", service.text("action.run"))
 
+    def test_application_name_is_localized(self) -> None:
+        service = LocalizationService("en")
+        self.assertEqual("Offline Background Remover", service.text("app.name"))
+        self.assertIn(
+            service.text("app.name"),
+            service.text("app.title", app_name=service.text("app.name")),
+        )
+
+        service.set_language("vi")
+        self.assertEqual("Xóa Nền AI Offline", service.text("app.name"))
+        self.assertIn(
+            service.text("app.name"),
+            service.text("app.title", app_name=service.text("app.name")),
+        )
+
     def test_unknown_language_falls_back_to_vietnamese(self) -> None:
         service = LocalizationService("unsupported")
         self.assertEqual("vi", service.language)

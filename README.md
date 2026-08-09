@@ -1,4 +1,4 @@
-# Xóa Nền AI Offline
+# Offline Background Remover
 
 [![CI](https://github.com/Duongmike/Offline-Background-Remover/actions/workflows/ci.yml/badge.svg)](https://github.com/Duongmike/Offline-Background-Remover/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/Duongmike/Offline-Background-Remover?display_name=tag)](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)
@@ -8,11 +8,11 @@
 
 **English** · [Tiếng Việt](README.vi.md)
 
-Xóa Nền AI Offline is a Windows desktop application for AI background removal,
+Offline Background Remover is a Windows desktop application for AI background removal,
 advanced colour-keying, batch processing, and image resizing. Images stay on
 the local machine; the application does not upload them to a remote service.
 
-> **Current release:** v1.5.1. The application is actively developed and its
+> **Current release:** v1.5.2. The application is actively developed and its
 > complete workflow supports English and Vietnamese with a persisted language
 > selection.
 
@@ -25,8 +25,8 @@ the local machine; the application does not upload them to a remote service.
 - Preview single-image source/result pairs before opening the generated file.
 - Use multiple background samples, a mask overlay, and keep/remove brushes with
   20-step undo and redo.
-- Switch the complete desktop workflow from the compact `EN | VI` header control
-  without restarting the application.
+- Switch the complete desktop workflow and displayed application name from the
+  compact `EN | VI` header control without restarting the application.
 - Verify, download, and repair pinned AI models from the non-blocking Model Manager.
 - Keep the default AI layout compact; colour controls expand only for advanced
   colour-key and hybrid modes, with a visible swatch beside each sampled hex value.
@@ -41,11 +41,11 @@ the local machine; the application does not upload them to a remote service.
 
 Download the latest verified installer from **[GitHub Releases](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)**:
 
-1. Download `KhongBietGiDungNoi_Setup_1.5.1.exe` and `SHA256SUMS.txt`.
+1. Download `KhongBietGiDungNoi_Setup_1.5.2.exe` and `SHA256SUMS.txt`.
 2. Optionally verify the installer before running it:
 
    ```powershell
-   (Get-FileHash .\KhongBietGiDungNoi_Setup_1.5.1.exe -Algorithm SHA256).Hash
+   (Get-FileHash .\KhongBietGiDungNoi_Setup_1.5.2.exe -Algorithm SHA256).Hash
    Get-Content .\SHA256SUMS.txt
    ```
 

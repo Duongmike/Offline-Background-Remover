@@ -11,7 +11,7 @@ Xóa Nền AI Offline là ứng dụng desktop Windows để xóa nền AI, tác
 màu nâng cao, xử lý hàng loạt và resize ảnh. Ảnh chỉ được xử lý trên máy của
 người dùng, không tải lên dịch vụ bên ngoài.
 
-> **Bản hiện tại:** v1.5.1. Dự án đang được phát triển tích cực; toàn bộ workflow
+> **Bản hiện tại:** v1.5.2. Dự án đang được phát triển tích cực; toàn bộ workflow
 > hỗ trợ English và Tiếng Việt, đồng thời lưu lựa chọn ngôn ngữ của người dùng.
 
 ![Giao diện Offline Background Remover](ui_preview.png)
@@ -22,7 +22,8 @@ người dùng, không tải lên dịch vụ bên ngoài.
 - Ba chiến lược xóa nền: AI tự động, theo màu nâng cao và Hybrid AI + màu.
 - Preview ảnh gốc/kết quả ở chế độ một ảnh trước khi mở file đã tạo.
 - Nhiều mẫu nền, overlay mask, cọ Giữ lại/Xóa thêm, Undo/Redo 20 lệnh.
-- Chuyển toàn bộ workflow bằng nút gọn `EN | VI` trên header mà không cần mở lại app.
+- Chuyển toàn bộ workflow và tên ứng dụng hiển thị bằng nút gọn `EN | VI` trên
+  header mà không cần mở lại app.
 - Kiểm tra, tải và sửa model đã ghim SHA256 bằng Model Manager chạy nền.
 - Giao diện AI mặc định gọn; bộ điều khiển màu chỉ mở ở chế độ Theo màu/Hybrid
   và hiển thị ô màu trực quan cạnh mã hex của từng mẫu.
@@ -36,11 +37,11 @@ người dùng, không tải lên dịch vụ bên ngoài.
 
 Tải bộ cài đã được kiểm tra tại **[GitHub Releases](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)**:
 
-1. Tải `KhongBietGiDungNoi_Setup_1.5.1.exe` và `SHA256SUMS.txt`.
+1. Tải `KhongBietGiDungNoi_Setup_1.5.2.exe` và `SHA256SUMS.txt`.
 2. Có thể xác minh bộ cài trước khi chạy:
 
    ```powershell
-   (Get-FileHash .\KhongBietGiDungNoi_Setup_1.5.1.exe -Algorithm SHA256).Hash
+   (Get-FileHash .\KhongBietGiDungNoi_Setup_1.5.2.exe -Algorithm SHA256).Hash
    Get-Content .\SHA256SUMS.txt
    ```
 
