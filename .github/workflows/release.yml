@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and verify Windows installer
+    runs-on: windows-2025
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            test-requirements.txt
+            build-requirements.txt
+
+      - name: Create build environment
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt -r build-requirements.txt
+
+      - name: Download verified models
+        run: .\.venv\Scripts\python.exe scripts\download_models.py
+
+      - name: Validate release tag
+        if: github.event_name == 'push'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: .\.venv\Scripts\python.exe -m scripts.verify_release --tag "$env:RELEASE_TAG"
+
+      - name: Build and smoke-test packaged application
+        shell: pwsh
+        run: |
+          cmd /d /c build.bat
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build installer and checksum
+        shell: pwsh
+        run: |
+          cmd /d /c build_installer.bat
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify release artifacts
+        run: .\.venv\Scripts\python.exe -m scripts.verify_release --release-dir release
+
+      - name: Upload verified release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-release
+          path: |
+            release/KhongBietGiDungNoi_Setup_*.exe
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  publish:
+    name: Publish GitHub release
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download verified release artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: windows-release
+          path: release
+
+      - name: Create or repair GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release/* --clobber
+          else
+            gh release create "$RELEASE_TAG" release/* --verify-tag --title "$RELEASE_TAG" --generate-notes --latest
+          fi

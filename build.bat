@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 if not exist ".venv\Scripts\python.exe" (
     echo [LOI] Chua co moi truong build. Hay chay setup.bat truoc.
-    pause
+    if not defined CI pause
     exit /b 1
 )
 
@@ -28,11 +28,11 @@ if errorlevel 1 goto :error
 
 echo.
 echo Build thanh cong: dist\KhongBietGiDungNoi\KhongBietGiDungNoi.exe
-pause
+if not defined CI pause
 exit /b 0
 
 :error
 echo.
 echo [LOI] Build that bai. Xem thong bao phia tren.
-pause
+if not defined CI pause
 exit /b 1

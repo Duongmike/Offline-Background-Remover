@@ -1,0 +1,303 @@
+"""Central English/Vietnamese user-interface translations."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from string import Formatter
+from typing import Mapping
+
+
+DEFAULT_LANGUAGE = "vi"
+SUPPORTED_LANGUAGES = ("en", "vi")
+LANGUAGE_LABELS = {"en": "English", "vi": "Tiếng Việt"}
+
+
+EN: dict[str, str] = {
+    "app.title": "{app_name} — Background removal & image resize",
+    "app.tagline": "AI background removal and resize for one image or a batch — fast, private, local",
+    "language.label": "Language",
+    "section.source": "01  IMAGE SOURCE",
+    "section.background": "02  BACKGROUND REMOVAL",
+    "section.resize": "03  IMAGE RESIZE",
+    "section.progress": "04  PROGRESS",
+    "input.single": "One image",
+    "input.folder": "Folder",
+    "input.image_label": "Input image",
+    "input.folder_label": "Input folder",
+    "input.choose_image": "Choose image",
+    "input.choose_folder": "Choose folder",
+    "input.output_folder": "Output folder",
+    "input.include_subfolders": "Include subfolders",
+    "input.overwrite": "Overwrite existing files",
+    "input.source_safe": "Source images are never modified",
+    "background.enabled": "Enable background removal",
+    "background.method": "Method",
+    "background.model": "AI model",
+    "background.description": "AI: U²-Net. Advanced colour mode removes connected background areas\nwhile protecting leaves, stems, and foreground objects with similar colours.",
+    "background.pick": "Pick background colour",
+    "background.clear": "Clear samples",
+    "background.no_samples": "No colour samples · Choose one image, then pick a background colour",
+    "background.recent_samples": " · showing the 5 most recent samples",
+    "background.sample_count": "{count} colour samples{suffix}",
+    "background.similarity": "Colour similarity",
+    "background.softness": "Edge softness",
+    "background.protection": "Edge protection",
+    "background.spill": "Spill suppression",
+    "background.connected": "Remove only areas connected to the border",
+    "background.overlay": "Show red/green mask overlay",
+    "background.keep": "Keep",
+    "background.remove_more": "Remove more",
+    "background.redetect": "Detect again",
+    "background.preload": "Prepare AI in the background when the app starts",
+    "removal.ai": "Automatic AI",
+    "removal.color_key": "Advanced colour key",
+    "removal.hybrid": "Hybrid AI + colour",
+    "model.u2net": "High quality · U²-Net",
+    "model.u2netp": "Fast · U²-Net Lite",
+    "model.manage": "Manage models",
+    "resize.none": "Do not resize",
+    "resize.percent": "By percentage",
+    "resize.exact": "Fit inside W × H",
+    "resize.max_side": "Limit longest side",
+    "resize.ratio": "Scale (%)",
+    "resize.width": "Width",
+    "resize.height": "Height",
+    "resize.keep_aspect": "Keep aspect ratio, do not crop",
+    "resize.max_side_label": "Longest side (px)",
+    "resize.hint": "High-quality Lanczos · Longest-side mode never upscales",
+    "resize.png": "PNG compression",
+    "png.fast": "Fast · lossless",
+    "png.balanced": "Balanced",
+    "png.small": "Small file",
+    "preview.source": "SOURCE",
+    "preview.result": "RESULT",
+    "preview.empty": "No image",
+    "preview.not_selected": "No image selected",
+    "preview.not_processed": "Not processed",
+    "preview.choose": "Choose or drop an image",
+    "preview.loading": "Loading preview…",
+    "preview.generating": "Generating preview…",
+    "preview.invalid": "Invalid image file",
+    "preview.read_error": "Cannot read preview",
+    "preview.waiting": "Waiting to process…",
+    "preview.failed": "Processing failed",
+    "action.run": "START PROCESSING",
+    "action.stop": "Stop",
+    "action.open_folder": "Open output folder",
+    "action.open_image": "Open image location",
+    "status.ready": "Ready",
+    "status.ready_hint": "Choose an image folder to begin",
+    "status.single_hint": "Choose or drop an image to begin",
+    "status.ai_preparing": "Preparing AI",
+    "status.ai_preparing_hint": "Preloading and warming up the model in the background · You can keep using the app",
+    "status.ai_ready": "AI is ready",
+    "status.ai_ready_hint": "Model warm-up completed · The first image will not wait for model loading",
+    "status.preload_failed": "Preload did not complete · The app will fall back automatically while processing",
+    "status.processing": "Processing",
+    "status.stopping": "Stopping",
+    "status.stopping_hint": "The tool will stop safely after the current image…",
+    "status.stopped": "Stopped",
+    "status.completed": "Completed",
+    "status.error": "Error",
+    "status.fatal_hint": "The processing session could not be completed",
+    "status.closing": "Closing safely",
+    "runtime.private": "{provider} · Images are never uploaded",
+    "dialog.choose_image": "Choose one image",
+    "dialog.choose_input_folder": "Choose an image folder",
+    "dialog.choose_output_folder": "Choose an output folder",
+    "dialog.choose_destination": "Choose where to save the result",
+    "dialog.supported_images": "Supported images",
+    "dialog.all_files": "All files",
+    "dialog.png_image": "PNG image",
+    "dialog.invalid_config_title": "Invalid configuration",
+    "dialog.create_folder_title": "Cannot create folder",
+    "dialog.create_folder_message": "Cannot create the output folder:\n{error}",
+    "dialog.processing_failed_title": "Processing failed",
+    "dialog.processing_failed_message": "No result image was created.\n\n{summary}{detail}",
+    "dialog.completed_title": "Processing completed",
+    "dialog.completed_message": "{app_name} finished processing.\n\n{summary}\n\nResults were saved to:\n{path}",
+    "dialog.open_missing_title": "Folder not found",
+    "dialog.open_missing_message": "There is no output folder to open yet.",
+    "dialog.drop_one_title": "Choose one source",
+    "dialog.drop_one_message": "Drop exactly one image or one folder.",
+    "dialog.unsupported_title": "Unsupported file",
+    "dialog.unsupported_message": "Drop a PNG, JPG, WEBP, BMP, or TIFF file.",
+    "dialog.pick_title": "Pick background colour",
+    "dialog.pick_message": "Switch to One image and select an image before sampling the background colour.",
+    "dialog.close_title": "Processing in progress",
+    "dialog.close_message": "A processing session is still running. Stop it and exit?",
+    "error.choose_input_folder": "Choose an input folder.",
+    "error.choose_output_folder": "Choose an output folder.",
+    "error.integer": "{label} must be an integer.",
+    "error.positive": "{label} must be greater than zero.",
+    "error.choose_supported_image": "Choose a PNG, JPG, WEBP, BMP, or TIFF image.",
+    "error.choose_action": "Enable at least one action: background removal or resize.",
+    "error.no_images": "No supported images were found in the input folder.",
+    "count.zero": "0 images",
+    "count.one": "1 image",
+    "count.none": "No image selected",
+    "count.many": "{count} images",
+    "count.unreadable": "Cannot read",
+    "hint.single_output": "Drop an image above or choose one · You will select the destination after pressing {action}",
+    "eyedropper.enabled": "Click the source preview to take a median 5×5 sample.",
+    "eyedropper.disabled": "Background colour picker disabled.",
+    "processing.found_one": "Selected 1 image",
+    "processing.found_many": "Found {count} images",
+    "processing.loading_ai": "Loading the AI model into {provider}…",
+    "processing.preparing_resize": "Preparing the resize pipeline…",
+    "processing.progress": "{completed}/{total} · {name}",
+    "processing.cancelled": "Processed {succeeded}/{total} images before stopping",
+    "processing.cancelled_log": "The processing session stopped safely.",
+    "processing.summary": "{succeeded} succeeded · {failed} failed · {skipped} skipped",
+    "processing.detail": "\n\nDetails: {error}",
+    "log.skip": "SKIP",
+    "log.error": "ERROR",
+    "log.done": "DONE",
+    "log.complete": "COMPLETE",
+    "log.system_error": "SYSTEM ERROR",
+    "log.provider": "Active provider: {provider}",
+    "log.gpu_fallback": "GPU is not compatible in this session · Safely switched to CPU",
+    "model_manager.title": "AI Model Manager",
+    "model_manager.description": "Models stay on this computer. Downloads are verified with SHA256 before installation.",
+    "model_manager.name": "Model",
+    "model_manager.size": "Size",
+    "model_manager.status": "Status",
+    "model_manager.installed": "Installed · verified",
+    "model_manager.invalid": "Invalid checksum",
+    "model_manager.missing": "Not installed",
+    "model_manager.verify": "Verify",
+    "model_manager.repair": "Download / Repair",
+    "model_manager.close": "Close",
+    "model_manager.license": "License: {license_name}",
+    "model_manager.working": "Working…",
+    "model_manager.progress": "Downloading {name}: {percent}%",
+    "model_manager.success": "{name} is installed and verified.",
+    "model_manager.failure": "Model operation failed: {error}",
+    "settings.save_failed": "SETTINGS  Could not save settings: {error}",
+}
+
+
+VI: dict[str, str] = {
+    "app.title": "{app_name} — Xóa nền & Resize ảnh",
+    "app.tagline": "Xóa nền AI & resize một ảnh hoặc hàng loạt — nhanh, riêng tư, chạy local",
+    "language.label": "Ngôn ngữ",
+    "section.source": "01  NGUỒN ẢNH",
+    "section.background": "02  XÓA NỀN",
+    "section.resize": "03  RESIZE ẢNH",
+    "section.progress": "04  TIẾN TRÌNH",
+    "input.single": "Một ảnh", "input.folder": "Cả folder", "input.image_label": "Ảnh đầu vào",
+    "input.folder_label": "Folder đầu vào", "input.choose_image": "Chọn ảnh", "input.choose_folder": "Chọn folder",
+    "input.output_folder": "Folder đầu ra", "input.include_subfolders": "Bao gồm folder con",
+    "input.overwrite": "Ghi đè file đã tồn tại", "input.source_safe": "Ảnh gốc luôn được giữ nguyên",
+    "background.enabled": "Bật xóa nền tự động", "background.method": "Phương pháp", "background.model": "Mô hình xử lý",
+    "background.description": "AI: U²-Net. Màu nâng cao chỉ xóa nền liên thông,\nưu tiên không làm mất lá/cọng/vật thể xanh.",
+    "background.pick": "Chọn màu nền", "background.clear": "Xóa mẫu",
+    "background.no_samples": "Chưa có mẫu màu · Chọn ảnh đơn rồi bấm Chọn màu nền",
+    "background.recent_samples": " · hiển thị 5 mẫu gần nhất", "background.sample_count": "{count} mẫu màu{suffix}",
+    "background.similarity": "Độ tương đồng màu", "background.softness": "Độ mềm viền",
+    "background.protection": "Bảo vệ cạnh", "background.spill": "Khử ám màu",
+    "background.connected": "Chỉ xóa vùng liên thông với biên", "background.overlay": "Hiện overlay mask đỏ/xanh",
+    "background.keep": "Giữ lại", "background.remove_more": "Xóa thêm", "background.redetect": "Tự nhận diện lại",
+    "background.preload": "Chuẩn bị AI trong nền khi mở app",
+    "removal.ai": "AI tự động", "removal.color_key": "Theo màu nâng cao", "removal.hybrid": "Hybrid AI + màu",
+    "model.u2net": "Chất lượng cao · U²-Net", "model.u2netp": "Tốc độ nhanh · U²-Net Lite", "model.manage": "Quản lý model",
+    "resize.none": "Không thay đổi kích thước", "resize.percent": "Theo phần trăm",
+    "resize.exact": "Vừa trong khung W × H", "resize.max_side": "Giới hạn cạnh dài", "resize.ratio": "Tỷ lệ (%)",
+    "resize.width": "Rộng", "resize.height": "Cao", "resize.keep_aspect": "Giữ tỷ lệ, không crop",
+    "resize.max_side_label": "Cạnh dài tối đa (px)", "resize.hint": "Lanczos chất lượng cao · Không upscale ở chế độ cạnh dài",
+    "resize.png": "Nén PNG", "png.fast": "Nhanh · lossless", "png.balanced": "Cân bằng", "png.small": "File nhỏ",
+    "preview.source": "ẢNH GỐC", "preview.result": "KẾT QUẢ", "preview.empty": "Chưa có ảnh",
+    "preview.not_selected": "Chưa chọn ảnh", "preview.not_processed": "Chưa xử lý",
+    "preview.choose": "Chọn hoặc kéo thả một ảnh", "preview.loading": "Đang tải preview…",
+    "preview.generating": "Đang tạo preview…", "preview.invalid": "File ảnh không hợp lệ",
+    "preview.read_error": "Không thể đọc preview", "preview.waiting": "Đang chờ xử lý…", "preview.failed": "Xử lý không thành công",
+    "action.run": "BẮT ĐẦU XỬ LÝ", "action.stop": "Dừng xử lý", "action.open_folder": "Mở folder kết quả",
+    "action.open_image": "Mở vị trí ảnh", "status.ready": "Sẵn sàng xử lý",
+    "status.ready_hint": "Chọn folder ảnh để bắt đầu", "status.single_hint": "Chọn hoặc kéo thả một ảnh để bắt đầu",
+    "status.ai_preparing": "Đang chuẩn bị AI",
+    "status.ai_preparing_hint": "Đang preload và warm-up model trong nền · Bạn vẫn có thể thao tác",
+    "status.ai_ready": "AI đã sẵn sàng", "status.ai_ready_hint": "Model đã warm-up · Ảnh đầu tiên không phải chờ nạp model",
+    "status.preload_failed": "Preload chưa thành công · App sẽ tự fallback khi xử lý", "status.processing": "Đang xử lý",
+    "status.stopping": "Đang dừng", "status.stopping_hint": "Tool sẽ dừng an toàn sau ảnh đang xử lý…",
+    "status.stopped": "Đã dừng", "status.completed": "Hoàn tất", "status.error": "Có lỗi",
+    "status.fatal_hint": "Không thể hoàn thành phiên xử lý", "status.closing": "Đang đóng an toàn",
+    "runtime.private": "{provider} · Không upload ảnh", "dialog.choose_image": "Chọn một ảnh",
+    "dialog.choose_input_folder": "Chọn folder chứa ảnh", "dialog.choose_output_folder": "Chọn folder lưu kết quả",
+    "dialog.choose_destination": "Chọn nơi lưu ảnh kết quả", "dialog.supported_images": "Ảnh được hỗ trợ",
+    "dialog.all_files": "Tất cả file", "dialog.png_image": "Ảnh PNG", "dialog.invalid_config_title": "Cấu hình chưa hợp lệ",
+    "dialog.create_folder_title": "Không thể tạo folder", "dialog.create_folder_message": "Không thể tạo folder đầu ra:\n{error}",
+    "dialog.processing_failed_title": "Xử lý không thành công",
+    "dialog.processing_failed_message": "Không tạo được ảnh kết quả.\n\n{summary}{detail}",
+    "dialog.completed_title": "Xử lý hoàn tất",
+    "dialog.completed_message": "{app_name} đã xử lý xong.\n\n{summary}\n\nKết quả được lưu tại:\n{path}",
+    "dialog.open_missing_title": "Folder không tồn tại", "dialog.open_missing_message": "Chưa có folder kết quả để mở.",
+    "dialog.drop_one_title": "Chỉ chọn một nguồn", "dialog.drop_one_message": "Hãy kéo thả đúng một ảnh hoặc một folder.",
+    "dialog.unsupported_title": "File không được hỗ trợ", "dialog.unsupported_message": "Hãy thả file PNG, JPG, WEBP, BMP hoặc TIFF.",
+    "dialog.pick_title": "Chọn màu nền", "dialog.pick_message": "Hãy chuyển sang Một ảnh và chọn ảnh trước khi lấy mẫu màu nền.",
+    "dialog.close_title": "Đang xử lý", "dialog.close_message": "Một phiên xử lý đang chạy. Bạn có muốn dừng và thoát?",
+    "error.choose_input_folder": "Hãy chọn folder đầu vào.", "error.choose_output_folder": "Hãy chọn folder đầu ra.",
+    "error.integer": "{label} phải là số nguyên.", "error.positive": "{label} phải lớn hơn 0.",
+    "error.choose_supported_image": "Hãy chọn một ảnh PNG, JPG, WEBP, BMP hoặc TIFF.",
+    "error.choose_action": "Hãy bật ít nhất một chức năng: xóa nền hoặc resize.",
+    "error.no_images": "Không tìm thấy ảnh được hỗ trợ trong folder đầu vào.",
+    "count.zero": "0 ảnh", "count.one": "1 ảnh", "count.none": "Chưa chọn ảnh", "count.many": "{count} ảnh",
+    "count.unreadable": "Không thể đọc",
+    "hint.single_output": "Kéo thả ảnh vào ô trên hoặc chọn ảnh · Nơi lưu sẽ được hỏi sau khi bấm {action}",
+    "eyedropper.enabled": "Click lên preview ảnh gốc để lấy mẫu median 5×5.", "eyedropper.disabled": "Đã tắt chọn màu nền.",
+    "processing.found_one": "Đã chọn 1 ảnh", "processing.found_many": "Đã tìm thấy {count} ảnh",
+    "processing.loading_ai": "Đang nạp mô hình AI vào {provider}…", "processing.preparing_resize": "Đang chuẩn bị bộ xử lý resize…",
+    "processing.progress": "{completed}/{total} · {name}", "processing.cancelled": "Đã xử lý {succeeded}/{total} ảnh trước khi dừng",
+    "processing.cancelled_log": "Phiên xử lý đã được dừng an toàn.",
+    "processing.summary": "{succeeded} thành công · {failed} lỗi · {skipped} bỏ qua",
+    "processing.detail": "\n\nChi tiết: {error}", "log.skip": "BỎ QUA", "log.error": "LỖI", "log.done": "XONG",
+    "log.complete": "HOÀN TẤT", "log.system_error": "LỖI HỆ THỐNG", "log.provider": "Provider thực tế: {provider}",
+    "log.gpu_fallback": "GPU không tương thích trong phiên này · Đã tự chuyển sang CPU an toàn",
+    "model_manager.title": "Quản lý mô hình AI",
+    "model_manager.description": "Model được lưu trên máy này. Mọi bản tải xuống đều được kiểm tra SHA256 trước khi cài.",
+    "model_manager.name": "Mô hình", "model_manager.size": "Dung lượng", "model_manager.status": "Trạng thái",
+    "model_manager.installed": "Đã cài · hợp lệ", "model_manager.invalid": "Sai checksum", "model_manager.missing": "Chưa cài",
+    "model_manager.verify": "Kiểm tra", "model_manager.repair": "Tải / Sửa chữa", "model_manager.close": "Đóng",
+    "model_manager.license": "Giấy phép: {license_name}", "model_manager.working": "Đang xử lý…",
+    "model_manager.progress": "Đang tải {name}: {percent}%", "model_manager.success": "{name} đã được cài và xác minh.",
+    "model_manager.failure": "Thao tác model thất bại: {error}",
+    "settings.save_failed": "CẤU HÌNH  Không thể lưu thiết lập: {error}",
+}
+
+
+TRANSLATIONS: Mapping[str, Mapping[str, str]] = {"en": EN, "vi": VI}
+
+
+def validate_translations() -> None:
+    """Raise ValueError when a locale is missing or adds translation keys."""
+    source_keys = set(EN)
+    for language, values in TRANSLATIONS.items():
+        missing = source_keys - set(values)
+        extra = set(values) - source_keys
+        if missing or extra:
+            raise ValueError(f"Invalid {language} translations; missing={sorted(missing)}, extra={sorted(extra)}")
+        for key in source_keys:
+            source_fields = {field for _, field, _, _ in Formatter().parse(EN[key]) if field}
+            translated_fields = {field for _, field, _, _ in Formatter().parse(values[key]) if field}
+            if source_fields != translated_fields:
+                raise ValueError(
+                    f"Invalid {language} placeholders for {key}: expected={sorted(source_fields)}, actual={sorted(translated_fields)}"
+                )
+
+
+@dataclass(slots=True)
+class LocalizationService:
+    """Resolve localized text from one validated central repository."""
+
+    language: str = DEFAULT_LANGUAGE
+
+    def __post_init__(self) -> None:
+        validate_translations()
+        self.set_language(self.language)
+
+    def set_language(self, language: str) -> None:
+        """Select a supported language, falling back to Vietnamese."""
+        self.language = language if language in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
+
+    def text(self, key: str, **values: object) -> str:
+        """Return one localized string and format named placeholders."""
+        template = TRANSLATIONS[self.language].get(key, EN.get(key, key))
+        return template.format(**values)

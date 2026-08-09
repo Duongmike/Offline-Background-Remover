@@ -50,3 +50,11 @@ jobs:
 
       - name: Run tests
         run: python -m unittest discover -s tests -v
+
+      - name: Run synthetic alpha quality gate
+        run: >-
+          python -m image_tool.quality
+          --manifest quality_dataset/starter/manifest.json
+          --predictions quality_results/starter-u2netp
+          --run-model u2netp
+          --output quality_results/starter-u2netp.json
