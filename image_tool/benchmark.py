@@ -19,6 +19,7 @@ from PIL import Image, ImageDraw
 
 from .models import PngCompressionMode, ResizeOptions, SingleImageOptions, StageTimings
 from .processing import BatchImageService, bundled_model_directory
+from .version import APP_VERSION
 
 
 class _ProcessMemoryCounters(ctypes.Structure):
@@ -134,7 +135,7 @@ def benchmark_runtime(model_name: str, repeats: int = 3) -> dict[str, Any]:
 
     service = BatchImageService()
     report: dict[str, Any] = {
-        "app_version": "1.4.0",
+        "app_version": APP_VERSION,
         "model": model_name,
         "environment": {
             "platform": platform.platform(),
@@ -261,7 +262,7 @@ def benchmark_runtime(model_name: str, repeats: int = 3) -> dict[str, Any]:
 
 def main() -> int:
     """Run the command-line benchmark and optionally persist JSON output."""
-    parser = argparse.ArgumentParser(description="Benchmark pipeline xóa nền 1.4.0")
+    parser = argparse.ArgumentParser(description=f"Benchmark pipeline xóa nền {APP_VERSION}")
     parser.add_argument("--model", default="u2net", choices=("u2net", "u2netp"))
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--output", type=Path)

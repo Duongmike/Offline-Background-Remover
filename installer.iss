@@ -1,5 +1,8 @@
 #define MyAppName "Không biết gì đừng nói"
-#define MyAppVersion "1.5.0"
+#define MyAppVersion GetEnv("APP_VERSION")
+#if MyAppVersion == ""
+  #error APP_VERSION is required. Run build_installer.bat instead of compiling installer.iss directly.
+#endif
 #define MyAppPublisher "Không biết gì đừng nói"
 #define MyAppExeName "KhongBietGiDungNoi.exe"
 
@@ -14,7 +17,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=release
-OutputBaseFilename=KhongBietGiDungNoi_Setup_1.5.0
+OutputBaseFilename=KhongBietGiDungNoi_Setup_{#MyAppVersion}
 SetupIconFile=assets\app_icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/max
@@ -25,7 +28,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
 RestartApplications=no
 SetupLogging=yes
-VersionInfoVersion=1.5.0.0
+VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription=Bộ cài {#MyAppName}
 VersionInfoProductName={#MyAppName}

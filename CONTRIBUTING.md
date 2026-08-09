@@ -27,6 +27,12 @@ To download only the lightweight model used by integration tests:
 .venv\Scripts\python.exe scripts\download_models.py --model u2netp
 ```
 
+## Release version
+
+Update the release version only in `image_tool/version.py`. The application,
+PyInstaller metadata, benchmark artifacts, Inno Setup installer, and checksum
+generation derive their version from that module.
+
 ## Pull-request checklist
 
 - Add or update tests for observable behaviour changes.

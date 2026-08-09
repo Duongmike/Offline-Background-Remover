@@ -1,10 +1,52 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 from PyInstaller.utils.hooks import copy_metadata
+from PyInstaller.utils.win32.versioninfo import (
+    FixedFileInfo,
+    StringFileInfo,
+    StringStruct,
+    StringTable,
+    VarFileInfo,
+    VarStruct,
+    VSVersionInfo,
+)
 from pathlib import Path
+
+from image_tool.version import APP_VERSION, WINDOWS_VERSION
 
 
 block_cipher = None
+
+version_info = VSVersionInfo(
+    ffi=FixedFileInfo(
+        filevers=WINDOWS_VERSION,
+        prodvers=WINDOWS_VERSION,
+        mask=0x3F,
+        flags=0x0,
+        OS=0x40004,
+        fileType=0x1,
+        subtype=0x0,
+        date=(0, 0),
+    ),
+    kids=[
+        StringFileInfo([
+            StringTable(
+                "040904B0",
+                [
+                    StringStruct("CompanyName", "Không biết gì đừng nói"),
+                    StringStruct("FileDescription", "Không biết gì đừng nói - Xóa nền AI và resize ảnh"),
+                    StringStruct("FileVersion", APP_VERSION),
+                    StringStruct("InternalName", "KhongBietGiDungNoi"),
+                    StringStruct("LegalCopyright", "Copyright 2026"),
+                    StringStruct("OriginalFilename", "KhongBietGiDungNoi.exe"),
+                    StringStruct("ProductName", "Không biết gì đừng nói"),
+                    StringStruct("ProductVersion", APP_VERSION),
+                ],
+            )
+        ]),
+        VarFileInfo([VarStruct("Translation", [1033, 1200])]),
+    ],
+)
 
 datas = [
     ("assets/app_icon_64.png", "assets"),
@@ -60,7 +102,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon="assets/app_icon.ico",
-    version="version_info.txt",
+    version=version_info,
 )
 
 coll = COLLECT(

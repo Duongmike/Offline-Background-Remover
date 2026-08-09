@@ -38,10 +38,10 @@ from .color_key import color_probability, median_color_sample, preview_to_origin
 from .color_key_config import ColorKeyConfig, ColorSample
 from .manual_mask import ManualMaskEditor, MaskStroke
 from .processing import BatchImageService, describe_execution_backend, discover_images
+from .version import APP_VERSION
 
 
 APP_NAME = "Không biết gì đừng nói"
-APP_VERSION = "1.5.0"
 
 
 def resource_path(relative: str) -> Path:

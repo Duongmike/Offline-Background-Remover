@@ -10,6 +10,11 @@ follow [Semantic Versioning](https://semver.org/).
 - English and Vietnamese UI localization.
 - Reproducible GitHub release automation.
 
+### Changed
+
+- Centralized application, benchmark, executable, installer, and checksum
+  versioning in one canonical module.
+
 ## [1.5.0] - 2026-08-08
 
 ### Added
