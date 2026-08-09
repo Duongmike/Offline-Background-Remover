@@ -12,7 +12,7 @@ Xóa Nền AI Offline is a Windows desktop application for AI background removal
 advanced colour-keying, batch processing, and image resizing. Images stay on
 the local machine; the application does not upload them to a remote service.
 
-> **Current release:** v1.5.0. The application is actively developed and its
+> **Current release:** v1.5.1. The application is actively developed and its
 > complete workflow supports English and Vietnamese with a persisted language
 > selection.
 
@@ -41,11 +41,11 @@ the local machine; the application does not upload them to a remote service.
 
 Download the latest verified installer from **[GitHub Releases](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)**:
 
-1. Download `KhongBietGiDungNoi_Setup_1.5.0.exe` and `SHA256SUMS.txt`.
+1. Download `KhongBietGiDungNoi_Setup_1.5.1.exe` and `SHA256SUMS.txt`.
 2. Optionally verify the installer before running it:
 
    ```powershell
-   (Get-FileHash .\KhongBietGiDungNoi_Setup_1.5.0.exe -Algorithm SHA256).Hash
+   (Get-FileHash .\KhongBietGiDungNoi_Setup_1.5.1.exe -Algorithm SHA256).Hash
    Get-Content .\SHA256SUMS.txt
    ```
 

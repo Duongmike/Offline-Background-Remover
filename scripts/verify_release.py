@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 from image_tool.version import APP_VERSION
@@ -12,6 +14,18 @@ from image_tool.version import APP_VERSION
 
 RELEASE_TAG_PATTERN = re.compile(r"^v\d+\.\d+\.\d+$")
 INSTALLER_PREFIX = "KhongBietGiDungNoi_Setup_"
+
+
+def _installer_path(release_directory: Path) -> Path:
+    return release_directory / f"{INSTALLER_PREFIX}{APP_VERSION}.exe"
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def validate_release_tag(tag: str) -> None:
@@ -23,9 +37,38 @@ def validate_release_tag(tag: str) -> None:
         raise ValueError(f"Release tag {tag!r} does not match APP_VERSION {APP_VERSION!r}")
 
 
+def write_release_checksum(release_directory: Path) -> tuple[Path, Path]:
+    """Atomically write the canonical installer's portable SHA256SUMS entry."""
+    installer = _installer_path(release_directory)
+    checksum_file = release_directory / "SHA256SUMS.txt"
+    if not installer.is_file() or installer.stat().st_size == 0:
+        raise ValueError(f"Missing or empty installer: {installer}")
+
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="ascii",
+            newline="\n",
+            dir=release_directory,
+            prefix=".SHA256SUMS.",
+            suffix=".tmp",
+            delete=False,
+        ) as stream:
+            temporary_path = Path(stream.name)
+            stream.write(f"{_sha256_file(installer).upper()}  {installer.name}\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_path, checksum_file)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+    return installer, checksum_file
+
+
 def verify_release_artifacts(release_directory: Path) -> tuple[Path, Path]:
     """Verify the canonical installer and SHA256SUMS file in a release directory."""
-    installer = release_directory / f"{INSTALLER_PREFIX}{APP_VERSION}.exe"
+    installer = _installer_path(release_directory)
     checksum_file = release_directory / "SHA256SUMS.txt"
     if not installer.is_file() or installer.stat().st_size == 0:
         raise ValueError(f"Missing or empty installer: {installer}")
@@ -42,11 +85,7 @@ def verify_release_artifacts(release_directory: Path) -> tuple[Path, Path]:
     if not re.fullmatch(r"[0-9a-f]{64}", expected_digest):
         raise ValueError("Checksum entry does not contain a valid SHA256 digest")
 
-    digest = hashlib.sha256()
-    with installer.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    if digest.hexdigest() != expected_digest:
+    if _sha256_file(installer) != expected_digest:
         raise ValueError(f"SHA256 mismatch for {installer.name}")
     return installer, checksum_file
 
@@ -55,15 +94,19 @@ def main(argv: list[str] | None = None) -> int:
     """Run requested release validations and return a process exit code."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tag", help="Validate a Git tag against APP_VERSION")
+    parser.add_argument("--write-checksum", type=Path, help="Atomically generate SHA256SUMS.txt for an installer")
     parser.add_argument("--release-dir", type=Path, help="Verify installer and SHA256SUMS.txt")
     arguments = parser.parse_args(argv)
-    if arguments.tag is None and arguments.release_dir is None:
-        parser.error("at least one of --tag or --release-dir is required")
+    if arguments.tag is None and arguments.write_checksum is None and arguments.release_dir is None:
+        parser.error("at least one of --tag, --write-checksum, or --release-dir is required")
 
     try:
         if arguments.tag is not None:
             validate_release_tag(arguments.tag)
             print(f"Validated release tag: {arguments.tag}")
+        if arguments.write_checksum is not None:
+            installer, checksum_file = write_release_checksum(arguments.write_checksum)
+            print(f"Wrote release checksum: {checksum_file.name} for {installer.name}")
         if arguments.release_dir is not None:
             installer, checksum_file = verify_release_artifacts(arguments.release_dir)
             print(f"Verified release artifacts: {installer.name}, {checksum_file.name}")

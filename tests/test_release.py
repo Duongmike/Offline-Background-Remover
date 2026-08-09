@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from image_tool.version import APP_VERSION
-from scripts.verify_release import validate_release_tag, verify_release_artifacts
+from scripts.verify_release import validate_release_tag, verify_release_artifacts, write_release_checksum
 
 
 class ReleaseValidationTests(unittest.TestCase):
@@ -29,6 +29,20 @@ class ReleaseValidationTests(unittest.TestCase):
 
             self.assertEqual(installer, actual_installer)
             self.assertEqual(checksum_file, actual_checksum)
+
+    def test_release_checksum_is_written_atomically_and_verifies(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            release_directory = Path(temporary_directory)
+            installer = release_directory / f"KhongBietGiDungNoi_Setup_{APP_VERSION}.exe"
+            installer.write_bytes(b"synthetic installer fixture")
+
+            actual_installer, checksum_file = write_release_checksum(release_directory)
+
+            expected_digest = hashlib.sha256(installer.read_bytes()).hexdigest().upper()
+            self.assertEqual(installer, actual_installer)
+            self.assertEqual(f"{expected_digest}  {installer.name}\n", checksum_file.read_text(encoding="ascii"))
+            self.assertFalse(any(path.suffix == ".tmp" for path in release_directory.iterdir()))
+            self.assertEqual((installer, checksum_file), verify_release_artifacts(release_directory))
 
     def test_release_artifacts_reject_checksum_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
