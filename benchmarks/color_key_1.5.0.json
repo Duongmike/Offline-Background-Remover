@@ -1,0 +1,85 @@
+{
+  "source": "C:\\Users\\Acer\\Downloads\\cad28ceb-b812-432c-9305-79d988233ef7.png",
+  "outputs": {
+    "color_key": {
+      "path": "benchmarks\\color_key_1.5.0.png",
+      "bytes": 4400502
+    },
+    "hybrid": {
+      "path": "benchmarks\\hybrid_1.5.0.png",
+      "bytes": 4400502
+    }
+  },
+  "runs": {
+    "color_key": {
+      "cold_ms": 335.8903000007558,
+      "warm_ms": 243.85459999757586,
+      "stages": [
+        {
+          "decode_ms": 18.208599998615682,
+          "rgb_lab_hsv_ms": 0.0,
+          "inference_ms": 0.0,
+          "mask_refinement_ms": 232.8354000019317,
+          "encode_png_ms": 79.92210000156774
+        },
+        {
+          "decode_ms": 17.208500001288485,
+          "rgb_lab_hsv_ms": 0.0,
+          "inference_ms": 0.0,
+          "mask_refinement_ms": 130.81400000010035,
+          "encode_png_ms": 90.32920000026934
+        }
+      ]
+    },
+    "hybrid": {
+      "cold_ms": 836.1303000019689,
+      "warm_ms": 317.62180000077933,
+      "stages": [
+        {
+          "decode_ms": 17.593500000657514,
+          "rgb_lab_hsv_ms": 18.61579999967944,
+          "inference_ms": 452.6222000022244,
+          "mask_refinement_ms": 249.31289999585715,
+          "encode_png_ms": 89.87540000089211
+        },
+        {
+          "decode_ms": 17.78570000169566,
+          "rgb_lab_hsv_ms": 19.03840000159107,
+          "inference_ms": 14.957499999582069,
+          "mask_refinement_ms": 174.00249999991502,
+          "encode_png_ms": 83.10420000270824
+        }
+      ]
+    }
+  },
+  "size_sweep_color_key": {
+    "512": {
+      "total_ms": 34.616699998878175,
+      "decode_ms": 11.160400001244852,
+      "rgb_lab_hsv_ms": 0.0,
+      "inference_ms": 0.0,
+      "mask_refinement_ms": 10.130700000445358,
+      "encode_png_ms": 10.437700002512429,
+      "png_bytes": 512557
+    },
+    "1024": {
+      "total_ms": 106.08020000290708,
+      "decode_ms": 24.352899999939837,
+      "rgb_lab_hsv_ms": 0.0,
+      "inference_ms": 0.0,
+      "mask_refinement_ms": 45.4518000005919,
+      "encode_png_ms": 32.574400000157766,
+      "png_bytes": 1842032
+    },
+    "2048": {
+      "total_ms": 307.04219999825,
+      "decode_ms": 50.863699998444645,
+      "rgb_lab_hsv_ms": 0.0,
+      "inference_ms": 0.0,
+      "mask_refinement_ms": 163.83979999955045,
+      "encode_png_ms": 86.76239999840618,
+      "png_bytes": 4400502
+    }
+  },
+  "python_tracemalloc_peak_mb": 74.69281482696533
+}

@@ -1,0 +1,12 @@
+{
+  "model": "u2net",
+  "provider": "DmlExecutionProvider",
+  "images_per_case": 8,
+  "session_state": "warm",
+  "cases": {
+    "512": {"before_ms": 383.3729, "after_fast_ms": 243.0564, "after_balanced_ms": 261.4186, "fast_speedup": 1.5773, "balanced_speedup": 1.4665, "alpha_mae_0_255": 0.0000267},
+    "1024": {"before_ms": 691.3926, "after_fast_ms": 274.4778, "after_balanced_ms": 292.9821, "fast_speedup": 2.5189, "balanced_speedup": 2.3599, "alpha_mae_0_255": 0.0000238},
+    "2048": {"before_ms": 1753.2377, "after_fast_ms": 720.1596, "after_balanced_ms": 741.3771, "fast_speedup": 2.4345, "balanced_speedup": 2.3648, "alpha_mae_0_255": 0.0000100}
+  },
+  "method": "1.3.1 rembg sequential pipeline at PNG level 6 versus 1.4.0 bounded 2 decode + 1 inference + 2 encode pipeline. Balanced keeps PNG level 6, isolating the pipeline benefit; Fast uses PNG level 1."
+}

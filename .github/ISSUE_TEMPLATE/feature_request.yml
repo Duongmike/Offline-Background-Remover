@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose an improvement / Đề xuất tính năng
+title: "[Feature]: "
+labels: [enhancement, needs-triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Vấn đề
+      description: Explain the user problem before describing a solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution / Giải pháp đề xuất
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives / Phương án khác
+  - type: textarea
+    id: impact
+    attributes:
+      label: Performance and compatibility impact
+      description: Consider memory, UI responsiveness, GPU/CPU fallback, and existing workflows.
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution / Đóng góp
+      options:
+        - label: I am willing to help implement or test this feature.

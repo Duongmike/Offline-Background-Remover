@@ -1,0 +1,68 @@
+name: Bug report
+description: Report a reproducible problem / Báo cáo lỗi có thể tái hiện
+title: "[Bug]: "
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve the project. Do not attach private images.
+        Cảm ơn bạn đã báo lỗi. Không đính kèm ảnh riêng tư.
+  - type: input
+    id: version
+    attributes:
+      label: Application version / Phiên bản
+      placeholder: 1.5.0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment / Môi trường
+      description: Windows version, Python version, CPU/GPU, and ONNX provider.
+      placeholder: Windows 11, Python 3.11, RTX 3060, DirectML
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Removal mode / Chế độ xóa nền
+      options:
+        - AI automatic
+        - Advanced colour-key
+        - Hybrid AI + colour
+        - Not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps / Các bước tái hiện
+      placeholder: |
+        1. Open...
+        2. Select...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour / Kết quả mong đợi
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour and logs / Kết quả thực tế và log
+      render: shell
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues / Tôi đã tìm issue trùng lặp.
+          required: true
+        - label: I removed private data from logs and attachments / Tôi đã xóa dữ liệu riêng tư.
+          required: true

@@ -1,0 +1,88 @@
+{
+  "app_version": "1.4.0",
+  "model": "u2net",
+  "environment": {
+    "platform": "Windows-10-10.0.19045-SP0",
+    "python": "3.10.11",
+    "onnxruntime": "1.23.0",
+    "available_providers": [
+      "DmlExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "model_directory": "D:\\ToolAppAutoXoaNen\\assets\\models",
+    "ram_initial_mb": 43.87890625,
+    "vram_initial_mb": 0.0
+  },
+  "sizes": {
+    "512": {
+      "decode_ms": 2.350099999603117,
+      "preprocess_ms": 5.049399998824811,
+      "inference_ms": 28.55240000099002,
+      "postprocess_ms": 4.307100000005448,
+      "encode_save_ms": 5.956599999990431,
+      "stage_total_ms": 47.846399998888955,
+      "wall_ms": 49.98580000028596
+    },
+    "1024": {
+      "decode_ms": 5.296700001053978,
+      "preprocess_ms": 14.970100000937236,
+      "inference_ms": 28.105699999287026,
+      "postprocess_ms": 15.291499999875668,
+      "encode_save_ms": 21.43450000039593,
+      "stage_total_ms": 85.53430000210938,
+      "wall_ms": 89.2602000003535
+    },
+    "2048": {
+      "decode_ms": 20.281400000385474,
+      "preprocess_ms": 44.89060000014433,
+      "inference_ms": 28.11640000072657,
+      "postprocess_ms": 62.409000000116066,
+      "encode_save_ms": 74.65960000081395,
+      "stage_total_ms": 232.63820000101987,
+      "wall_ms": 239.9848999993992
+    }
+  },
+  "png_profiles": {
+    "fast": {
+      "median_ms": 70.76229999984207,
+      "median_bytes": 194913,
+      "alpha_exact": true
+    },
+    "balanced": {
+      "median_ms": 64.28950000008626,
+      "median_bytes": 42575,
+      "alpha_exact": true
+    },
+    "small": {
+      "median_ms": 134.43809999989753,
+      "median_bytes": 35841,
+      "alpha_exact": true
+    }
+  },
+  "cold_start": {
+    "provider": "DmlExecutionProvider",
+    "model_load_ms": 768.0353000014293,
+    "first_image_wall_ms": 67.43619999906514,
+    "ready_to_first_output_ms": 835.4715000004944,
+    "stages": {
+      "decode_ms": 2.771399998891866,
+      "preprocess_ms": 5.650299999615527,
+      "inference_ms": 45.693099998970865,
+      "postprocess_ms": 4.621400001269649,
+      "encode_save_ms": 6.392700001015328,
+      "stage_total_ms": 65.12889999976323
+    },
+    "ram_after_load_mb": 335.28125,
+    "vram_after_load_mb": 437.0
+  },
+  "resources": {
+    "ram_peak_mb": 380.265625,
+    "vram_peak_mb": 699.0,
+    "pipeline_high_water": {
+      "decode_queue": 2,
+      "inference_queue": 2,
+      "encode_queue": 2,
+      "inflight_images": 1
+    }
+  }
+}
