@@ -41,7 +41,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-powershell -NoProfile -Command "$file = Get-Item -LiteralPath ('release\KhongBietGiDungNoi_Setup_' + $env:APP_VERSION + '.exe'); $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash; Set-Content -LiteralPath 'release\SHA256SUMS.txt' -Encoding ascii -Value ($hash + '  ' + $file.Name)"
+".venv\Scripts\python.exe" -m scripts.verify_release --write-checksum release
 if errorlevel 1 (
     echo [LOI] Khong the tao SHA256.
     if not defined CI pause

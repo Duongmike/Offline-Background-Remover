@@ -59,7 +59,7 @@ class VersionTests(unittest.TestCase):
         self.assertIn('GetEnv("APP_VERSION")', installer)
         self.assertIn("-m image_tool.version", build_script)
         self.assertIn('set "APP_VERSION="', build_script)
-        self.assertIn("SHA256SUMS.txt", build_script)
+        self.assertIn("-m scripts.verify_release --write-checksum release", build_script)
 
 
 if __name__ == "__main__":

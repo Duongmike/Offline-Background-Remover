@@ -5,6 +5,15 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-08-09
+
+### Fixed
+
+- Generate installer SHA256 checksums with the packaged Python runtime instead
+  of relying on a Windows PowerShell cmdlet unavailable on `windows-2025` runners.
+- Write `SHA256SUMS.txt` atomically and fail the build when checksum generation
+  cannot complete.
+
 ## [1.5.0] - 2026-08-09
 
 ### Added
@@ -30,5 +39,6 @@ follow [Semantic Versioning](https://semver.org/).
 - Kept AI mode compact by showing colour sampling and mask controls only for
   colour-key and hybrid removal.
 
-[Unreleased]: https://github.com/Duongmike/Offline-Background-Remover/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/Duongmike/Offline-Background-Remover/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/Duongmike/Offline-Background-Remover/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Duongmike/Offline-Background-Remover/releases/tag/v1.5.0
