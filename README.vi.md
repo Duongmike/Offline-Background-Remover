@@ -1,10 +1,10 @@
-# Offline Background Remover
+# Xóa Nền AI Offline
 
 [English](README.md) · **Tiếng Việt**
 
-Ứng dụng desktop Windows chạy offline để xóa nền AI, tách nền theo màu nâng
-cao, xử lý hàng loạt và resize ảnh. Ảnh chỉ được xử lý trên máy của người dùng,
-không tải lên dịch vụ bên ngoài.
+Xóa Nền AI Offline là ứng dụng desktop Windows để xóa nền AI, tách nền theo
+màu nâng cao, xử lý hàng loạt và resize ảnh. Ảnh chỉ được xử lý trên máy của
+người dùng, không tải lên dịch vụ bên ngoài.
 
 > **Trạng thái:** dự án đang được phát triển tích cực. Giao diện hiện tại dùng
 > tiếng Việt; bản địa hóa tiếng Anh đang nằm trong roadmap.
@@ -16,6 +16,8 @@ không tải lên dịch vụ bên ngoài.
 - Xử lý một ảnh hoặc cả folder và giữ nguyên cấu trúc folder con.
 - Ba chiến lược xóa nền: AI tự động, theo màu nâng cao và Hybrid AI + màu.
 - Nhiều mẫu nền, overlay mask, cọ Giữ lại/Xóa thêm, Undo/Redo 20 lệnh.
+- Giao diện AI mặc định gọn; bộ điều khiển màu chỉ mở ở chế độ Theo màu/Hybrid
+  và hiển thị ô màu trực quan cạnh mã hex của từng mẫu.
 - Resize theo phần trăm, khung W × H hoặc giới hạn cạnh dài.
 - Preload AI trong background, cancellation, back-pressure và atomic save.
 - Ưu tiên TensorRT/CUDA → CUDA → DirectML → CPU và fallback an toàn.

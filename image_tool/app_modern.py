@@ -40,8 +40,19 @@ from .manual_mask import ManualMaskEditor, MaskStroke
 from .processing import BatchImageService, describe_execution_backend, discover_images
 
 
-APP_NAME = "Không biết gì đừng nói"
+APP_NAME = "Xóa Nền AI Offline"
 APP_VERSION = "1.5.0"
+PRIMARY_ACTION_TEXT = "BẮT ĐẦU XỬ LÝ"
+
+
+def _uses_color_controls(remove_background: bool, removal_mode: str) -> bool:
+    """Return whether colour sampling and manual-mask controls are applicable."""
+    return remove_background and removal_mode in {"color_key", "hybrid"}
+
+
+def _color_sample_hex(sample: ColorSample) -> str:
+    """Format a colour sample for its visible UI label and Tk fill value."""
+    return f"#{sample.rgb[0]:02X}{sample.rgb[1]:02X}{sample.rgb[2]:02X}"
 
 
 def resource_path(relative: str) -> Path:
@@ -138,6 +149,7 @@ class KhongBietGiDungNoiApp(BaseTk):
         self._manual_editor = ManualMaskEditor(max_history=20)
         self._active_stroke_points: list[tuple[int, int]] = []
         self._overlay_after_id: str | None = None
+        self._overlay_generation = 0
         self._last_output_directory: Path | None = None
         self._last_output_file: Path | None = None
         self._last_processing_error: str | None = None
@@ -291,7 +303,7 @@ class KhongBietGiDungNoiApp(BaseTk):
             except tk.TclError:
                 self._header_icon = None
 
-        header.create_text(108, 30, text="KHÔNG BIẾT GÌ ĐỪNG NÓI", fill="white", font=("Segoe UI Semibold", 18), anchor=tk.W)
+        header.create_text(108, 30, text=APP_NAME.upper(), fill="white", font=("Segoe UI Semibold", 18), anchor=tk.W)
         header.create_text(108, 58, text="Xóa nền AI & resize một ảnh hoặc hàng loạt — nhanh, riêng tư, chạy local", fill="#BDD5F4", font=("Segoe UI", 10), anchor=tk.W)
         header.create_text(935, 26, text=f"v{APP_VERSION}", fill="#C7D8EE", font=("Segoe UI Semibold", 9), anchor=tk.E)
         self._backend_header_item = header.create_text(935, 52, text=self._execution_backend.upper(), fill=self.COLORS["cyan"], font=("Segoe UI Semibold", 9), anchor=tk.E)
@@ -367,8 +379,13 @@ class KhongBietGiDungNoiApp(BaseTk):
         self.color_controls.columnconfigure(0, weight=1)
         ttk.Button(self.color_controls, text="Chọn màu nền", style="Secondary.TButton", command=self._toggle_eyedropper).grid(row=0, column=0, sticky=tk.W)
         ttk.Button(self.color_controls, text="Xóa mẫu", style="Secondary.TButton", command=self._clear_color_samples).grid(row=0, column=1, sticky=tk.E)
+        self.samples_display = ttk.Frame(self.color_controls, style="Card.TFrame")
+        self.samples_display.grid(row=1, column=0, columnspan=2, sticky=tk.EW, pady=(6, 6))
         self.samples_var = tk.StringVar(value="Chưa có mẫu màu · Chọn ảnh đơn rồi bấm Chọn màu nền")
-        ttk.Label(self.color_controls, textvariable=self.samples_var, style="Muted.TLabel", wraplength=350).grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(6, 6))
+        ttk.Label(self.samples_display, textvariable=self.samples_var, style="Muted.TLabel", wraplength=350).pack(anchor=tk.W)
+        self.sample_chips = ttk.Frame(self.samples_display, style="Card.TFrame")
+        self.sample_chips.columnconfigure(0, weight=1)
+        self.sample_chips.columnconfigure(1, weight=1)
         self._add_color_slider(self.color_controls, "Độ tương đồng màu", self.color_similarity_var, 8, 80, 2)
         self._add_color_slider(self.color_controls, "Độ mềm viền", self.edge_softness_var, 0, 6, 3)
         self._add_color_slider(self.color_controls, "Bảo vệ cạnh", self.edge_protection_var, 0, 1, 4)
@@ -467,7 +484,7 @@ class KhongBietGiDungNoiApp(BaseTk):
         self.open_output_button.pack(side=tk.LEFT)
         self.cancel_button = ttk.Button(buttons, text="Dừng xử lý", style="Danger.TButton", command=self._cancel, state=tk.DISABLED)
         self.cancel_button.pack(side=tk.RIGHT, padx=(0, 8))
-        self.run_button = ttk.Button(buttons, text="BẮT ĐẦU XỬ LÝ", style="Accent.TButton", command=self._start)
+        self.run_button = ttk.Button(buttons, text=PRIMARY_ACTION_TEXT, style="Accent.TButton", command=self._start)
         self.run_button.pack(side=tk.RIGHT)
 
     def _build_preview_panel(
@@ -654,8 +671,37 @@ class KhongBietGiDungNoiApp(BaseTk):
     def _clear_color_samples(self) -> None:
         """Clear selected background samples without modifying the source image."""
         self._color_samples.clear()
-        self.samples_var.set("Chưa có mẫu màu")
+        self._refresh_color_sample_chips()
         self._schedule_overlay_refresh()
+
+    def _refresh_color_sample_chips(self) -> None:
+        """Render compact colour swatches next to the hexadecimal sample labels."""
+        for child in self.sample_chips.winfo_children():
+            child.destroy()
+
+        if not self._color_samples:
+            self.samples_var.set("Chưa có mẫu màu · Chọn ảnh đơn rồi bấm Chọn màu nền")
+            self.sample_chips.pack_forget()
+            return
+
+        visible_samples = self._color_samples[-5:]
+        suffix = " · hiển thị 5 mẫu gần nhất" if len(self._color_samples) > 5 else ""
+        self.samples_var.set(f"{len(self._color_samples)} mẫu màu{suffix}")
+        self.sample_chips.pack(fill=tk.X, pady=(4, 0))
+        for index, sample in enumerate(visible_samples):
+            chip = ttk.Frame(self.sample_chips, style="Card.TFrame")
+            chip.grid(row=index // 2, column=index % 2, sticky=tk.W, padx=(0, 12), pady=2)
+            swatch = tk.Canvas(
+                chip,
+                width=18,
+                height=18,
+                bg=self.COLORS["surface"],
+                highlightthickness=0,
+            )
+            swatch.pack(side=tk.LEFT)
+            color = _color_sample_hex(sample)
+            swatch.create_rectangle(2, 2, 16, 16, fill=color, outline="#94A3B8")
+            ttk.Label(chip, text=color, style="Muted.TLabel").pack(side=tk.LEFT, padx=(4, 0))
 
     def _color_config(self) -> ColorKeyConfig:
         """Build validated colour-key settings outside of the image algorithm module."""
@@ -680,6 +726,8 @@ class KhongBietGiDungNoiApp(BaseTk):
 
     def _on_source_canvas_down(self, event: tk.Event) -> None:
         """Start eyedropper sampling or an original-resolution manual stroke."""
+        if not self._color_controls_are_active():
+            return
         point = self._map_source_event(event)
         if point is None:
             return
@@ -723,14 +771,35 @@ class KhongBietGiDungNoiApp(BaseTk):
 
     def _schedule_overlay_refresh(self, *_args: object) -> None:
         """Debounce preview-mask work so sliders never re-run processing per mouse pixel."""
+        self._cancel_overlay_refresh()
+        if (
+            not self._color_controls_are_active()
+            or not self.overlay_var.get()
+            or self._source_preview_bitmap is None
+            or not self._color_samples
+        ):
+            self._restore_source_preview()
+            return
+        generation = self._overlay_generation
+        self._overlay_after_id = self.after(180, lambda: self._start_overlay_worker(generation))
+
+    def _cancel_overlay_refresh(self) -> None:
+        """Invalidate scheduled and in-flight overlay work without blocking Tk."""
+        self._overlay_generation += 1
         if self._overlay_after_id is not None:
             self.after_cancel(self._overlay_after_id)
-        self._overlay_after_id = self.after(180, self._start_overlay_worker)
+            self._overlay_after_id = None
 
-    def _start_overlay_worker(self) -> None:
+    def _start_overlay_worker(self, generation: int) -> None:
         """Run the small preview overlay calculation off the Tk event loop."""
         self._overlay_after_id = None
-        if not self.overlay_var.get() or self._source_preview_bitmap is None or not self._color_samples:
+        if (
+            generation != self._overlay_generation
+            or not self._color_controls_are_active()
+            or not self.overlay_var.get()
+            or self._source_preview_bitmap is None
+            or not self._color_samples
+        ):
             return
         try:
             image = self._source_preview_bitmap.copy()
@@ -738,9 +807,9 @@ class KhongBietGiDungNoiApp(BaseTk):
             config = self._color_config()
         except (ValueError, tk.TclError):
             return
-        threading.Thread(target=self._overlay_worker, args=(image, samples, config), daemon=True, name="mask-preview-worker").start()
+        threading.Thread(target=self._overlay_worker, args=(generation, image, samples, config), daemon=True, name="mask-preview-worker").start()
 
-    def _overlay_worker(self, preview: Image.Image, samples: tuple[ColorSample, ...], config: ColorKeyConfig) -> None:
+    def _overlay_worker(self, generation: int, preview: Image.Image, samples: tuple[ColorSample, ...], config: ColorKeyConfig) -> None:
         """Generate a red/green probability overlay for the compact preview only."""
         try:
             values = np.asarray(preview.convert("RGB"), dtype=np.uint8)
@@ -748,9 +817,9 @@ class KhongBietGiDungNoiApp(BaseTk):
             overlay = values.copy()
             overlay[:, :, 0] = np.maximum(overlay[:, :, 0], (probability * 220).astype(np.uint8))
             overlay[:, :, 1] = np.maximum(overlay[:, :, 1], ((1.0 - probability) * 180).astype(np.uint8))
-            self._events.put(("mask_overlay", Image.fromarray(overlay, "RGB")))
+            self._events.put(("mask_overlay", (generation, Image.fromarray(overlay, "RGB"))))
         except Exception as exc:
-            self._events.put(("mask_overlay_error", str(exc)))
+            self._events.put(("mask_overlay_error", (generation, str(exc))))
         finally:
             preview.close()
 
@@ -762,6 +831,15 @@ class KhongBietGiDungNoiApp(BaseTk):
         canvas = self.source_preview_canvas
         canvas.delete("preview_content")
         canvas.create_image(200, 90, image=photo, anchor=tk.CENTER, tags="preview_content")
+
+    def _restore_source_preview(self) -> None:
+        """Replace a stale mask overlay with the cached unmodified source preview."""
+        if self._source_preview_bitmap is None or not hasattr(self, "source_preview_canvas"):
+            return
+        photo = ImageTk.PhotoImage(self._source_preview_bitmap)
+        self._preview_photos["source"] = photo
+        self.source_preview_canvas.delete("preview_content")
+        self.source_preview_canvas.create_image(200, 90, image=photo, anchor=tk.CENTER, tags="preview_content")
 
     def _undo_manual(self) -> None:
         """Undo one compact brush command."""
@@ -786,7 +864,7 @@ class KhongBietGiDungNoiApp(BaseTk):
         single_mode = self._is_single_mode()
         self.source_label_var.set("Ảnh đầu vào" if single_mode else "Folder đầu vào")
         self.choose_input_text_var.set("Chọn ảnh" if single_mode else "Chọn folder")
-        self.run_button.configure(text="LƯU ẢNH…" if single_mode else "BẮT ĐẦU XỬ LÝ")
+        self.run_button.configure(text=PRIMARY_ACTION_TEXT)
         self.open_output_button.configure(text="Mở vị trí ảnh" if single_mode else "Mở folder kết quả")
 
         if single_mode:
@@ -796,7 +874,7 @@ class KhongBietGiDungNoiApp(BaseTk):
             self.output_entry.grid_remove()
             self.choose_output_button.grid_remove()
             self.folder_controls.grid_remove()
-            self.output_hint_var.set("Kéo thả ảnh vào ô trên hoặc chọn ảnh · Nơi lưu sẽ được hỏi khi bấm LƯU ẢNH")
+            self.output_hint_var.set(f"Kéo thả ảnh vào ô trên hoặc chọn ảnh · Nơi lưu sẽ được hỏi sau khi bấm {PRIMARY_ACTION_TEXT}")
             self.single_output_hint.grid(row=3, column=1, columnspan=2, sticky=tk.W, pady=(5, 8))
             self.progress_detail_var.set("Chọn hoặc kéo thả một ảnh để bắt đầu")
             self._schedule_source_preview()
@@ -876,12 +954,20 @@ class KhongBietGiDungNoiApp(BaseTk):
         self.model_combo.configure(state="readonly" if enabled else tk.DISABLED)
         self.removal_combo.configure(state="readonly" if enabled else tk.DISABLED)
         mode = self.REMOVAL_MODES[self.removal_mode_var.get()]
-        color_state = tk.NORMAL if enabled and mode in {"color_key", "hybrid"} else tk.DISABLED
-        for widget in self.color_controls.winfo_children():
-            try:
-                widget.configure(state=color_state)
-            except tk.TclError:
-                pass
+        if _uses_color_controls(enabled, mode):
+            self.color_controls.grid()
+            self._schedule_overlay_refresh()
+        else:
+            self.color_controls.grid_remove()
+            self.eyedropper_var.set(False)
+            self._active_stroke_points.clear()
+            self._cancel_overlay_refresh()
+            self._restore_source_preview()
+
+    def _color_controls_are_active(self) -> bool:
+        """Return whether the current UI state allows colour and mask editing."""
+        mode = self.REMOVAL_MODES.get(self.removal_mode_var.get(), "ai")
+        return _uses_color_controls(self.remove_background_var.get(), mode)
 
     def _on_model_changed(self, _event: object | None = None) -> None:
         """Warm the newly selected model when background preload is enabled."""
@@ -1101,17 +1187,24 @@ class KhongBietGiDungNoiApp(BaseTk):
                 elif event_name == "preview":
                     self._show_preview(payload)
                 elif event_name == "color_sample" and isinstance(payload, ColorSample):
-                    self._color_samples.append(payload)
-                    labels = ", ".join(f"#{sample.rgb[0]:02X}{sample.rgb[1]:02X}{sample.rgb[2]:02X}" for sample in self._color_samples[-5:])
-                    self.samples_var.set(f"{len(self._color_samples)} mẫu: {labels}")
-                    self.eyedropper_var.set(False)
-                    self._schedule_overlay_refresh()
+                    if self._color_controls_are_active():
+                        self._color_samples.append(payload)
+                        self._refresh_color_sample_chips()
+                        self.eyedropper_var.set(False)
+                        self._schedule_overlay_refresh()
                 elif event_name == "color_sample_error":
                     self._append_log(f"MÀU      {payload}", "error")
-                elif event_name == "mask_overlay" and isinstance(payload, Image.Image):
-                    self._show_mask_overlay(payload)
-                elif event_name == "mask_overlay_error":
-                    self._append_log(f"OVERLAY  {payload}", "skip")
+                elif event_name == "mask_overlay" and isinstance(payload, tuple) and len(payload) == 2:
+                    generation, image = payload
+                    if isinstance(image, Image.Image):
+                        if generation == self._overlay_generation and self._color_controls_are_active():
+                            self._show_mask_overlay(image)
+                        else:
+                            image.close()
+                elif event_name == "mask_overlay_error" and isinstance(payload, tuple) and len(payload) == 2:
+                    generation, error = payload
+                    if generation == self._overlay_generation and self._color_controls_are_active():
+                        self._append_log(f"OVERLAY  {error}", "skip")
                 elif event_name == "backend" and isinstance(payload, BackendEvent):
                     self._show_backend_event(payload)
                 elif event_name == "preload_done":
@@ -1338,8 +1431,61 @@ def run() -> None:
 
 
 def run_ui_smoke_test() -> int:
-    """Create the real Tk UI, allow startup callbacks, then close it safely."""
+    """Exercise contextual colour controls in the real Tk UI, then close safely."""
     app = KhongBietGiDungNoiApp()
-    app.after(1500, app._on_close)
+    errors: list[str] = []
+    original_remove_background = app.remove_background_var.get()
+    original_removal_mode = app.removal_mode_var.get()
+    original_input_mode = app.input_mode_var.get()
+
+    def verify_contextual_controls() -> None:
+        try:
+            for input_mode in app.INPUT_MODES:
+                app.input_mode_var.set(input_mode)
+                app._update_input_mode()
+                if app.run_button.cget("text") != PRIMARY_ACTION_TEXT:
+                    raise RuntimeError(f"Primary action text is inconsistent in {input_mode!r} mode.")
+
+            app.remove_background_var.set(True)
+            app.removal_mode_var.set("AI tự động")
+            app._update_background_fields()
+            app.update_idletasks()
+            if app.color_controls.winfo_manager():
+                raise RuntimeError("Colour controls must be collapsed in AI mode.")
+
+            app.removal_mode_var.set("Theo màu nâng cao")
+            app._update_background_fields()
+            app.update_idletasks()
+            if app.color_controls.winfo_manager() != "grid":
+                raise RuntimeError("Colour controls must be visible in colour-key mode.")
+
+            app._color_samples.extend((ColorSample((12, 34, 56)), ColorSample((210, 180, 40))))
+            app._refresh_color_sample_chips()
+            if len(app.sample_chips.winfo_children()) != 2:
+                raise RuntimeError("Each selected colour must render one visible swatch.")
+
+            app.removal_mode_var.set("Hybrid AI + màu")
+            app._update_background_fields()
+            app.update_idletasks()
+            if app.color_controls.winfo_manager() != "grid":
+                raise RuntimeError("Colour controls must be visible in hybrid mode.")
+
+            app.removal_mode_var.set("AI tự động")
+            app._update_background_fields()
+            app.update_idletasks()
+            if app.color_controls.winfo_manager():
+                raise RuntimeError("Colour controls must collapse after returning to AI mode.")
+        except Exception as exc:
+            errors.append(str(exc))
+        finally:
+            app.remove_background_var.set(original_remove_background)
+            app.removal_mode_var.set(original_removal_mode)
+            app.input_mode_var.set(original_input_mode)
+            app._on_close()
+
+    app.after(100, verify_contextual_controls)
     app.mainloop()
+    if errors:
+        print(f"UI smoke test failed: {errors[0]}", file=sys.stderr)
+        return 1
     return 0

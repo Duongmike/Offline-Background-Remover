@@ -1,4 +1,4 @@
-# Offline Background Remover
+# Xóa Nền AI Offline
 
 [![CI](https://github.com/Duongmike/Offline-Background-Remover/actions/workflows/ci.yml/badge.svg)](https://github.com/Duongmike/Offline-Background-Remover/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -6,9 +6,9 @@
 
 **English** · [Tiếng Việt](README.vi.md)
 
-An offline Windows desktop application for AI background removal, advanced
-colour-keying, batch processing, and image resizing. Images stay on the local
-machine; the application does not upload them to a remote service.
+Xóa Nền AI Offline is a Windows desktop application for AI background removal,
+advanced colour-keying, batch processing, and image resizing. Images stay on
+the local machine; the application does not upload them to a remote service.
 
 > **Project status:** actively developed. The current application UI is in
 > Vietnamese; English localization is on the roadmap. Public APIs and UI details
@@ -22,6 +22,8 @@ machine; the application does not upload them to a remote service.
 - Remove backgrounds with U²-Net, advanced colour-keying, or a hybrid strategy.
 - Use multiple background samples, a mask overlay, and keep/remove brushes with
   20-step undo and redo.
+- Keep the default AI layout compact; colour controls expand only for advanced
+  colour-key and hybrid modes, with a visible swatch beside each sampled hex value.
 - Resize by percentage, exact bounding box, or longest edge.
 - Keep the Tkinter UI responsive with background warm-up, cancellation, bounded
   queues, and atomic file replacement.

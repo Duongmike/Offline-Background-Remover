@@ -8,7 +8,6 @@ follow [Semantic Versioning](https://semver.org/).
 ### Planned
 
 - English and Vietnamese UI localization.
-- Reproducible GitHub release automation.
 
 ## [1.5.0] - 2026-08-08
 
@@ -23,6 +22,8 @@ follow [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Improved bounded processing, backend fallback reporting, and offline packaging.
+- Kept AI mode compact by showing colour sampling and mask controls only for
+  colour-key and hybrid removal.
 
 [Unreleased]: https://github.com/Duongmike/Offline-Background-Remover/compare/v1.5.0...HEAD
 [1.5.0]: https://github.com/Duongmike/Offline-Background-Remover/releases/tag/v1.5.0
