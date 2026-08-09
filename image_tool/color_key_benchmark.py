@@ -1,4 +1,4 @@
-"""Repeatable 1.5.0 benchmark for advanced colour-key and hybrid processing."""
+"""Repeatable benchmark for advanced colour-key and hybrid processing."""
 from __future__ import annotations
 
 import argparse
@@ -15,10 +15,11 @@ from .color_key import median_color_sample
 from .color_key_config import ColorKeyConfig
 from .models import ResizeOptions, SingleImageOptions
 from .processing import BatchImageService
+from .version import APP_VERSION
 
 
 def _benchmark_samples(image: Image.Image) -> tuple:
-    """Create the known lime-background seed for the supplied 1.5.0 benchmark image."""
+    """Create the known lime-background seed for the supplied benchmark image."""
     width, height = image.size
     return (median_color_sample(image, (width // 2, height // 2), 7),)
 
@@ -34,7 +35,10 @@ def benchmark(source: Path, output_directory: Path, model_name: str = "u2netp") 
     service = BatchImageService()
     records: dict[str, object] = {"source": str(source), "outputs": {}, "runs": {}}
     try:
-        for mode, name in (("color_key", "color_key_1.5.0.png"), ("hybrid", "hybrid_1.5.0.png")):
+        for mode, name in (
+            ("color_key", f"color_key_{APP_VERSION}.png"),
+            ("hybrid", f"hybrid_{APP_VERSION}.png"),
+        ):
             destination = output_directory / name
             options = SingleImageOptions(source, destination, True, ResizeOptions(), model_name=model_name, removal_mode=mode, color_samples=samples, color_key_config=config)
             run_times: list[float] = []
@@ -101,7 +105,7 @@ def main() -> int:
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     report["python_tracemalloc_peak_mb"] = peak / (1024 * 1024)
-    report_path = arguments.output / "color_key_1.5.0.json"
+    report_path = arguments.output / f"color_key_{APP_VERSION}.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(report_path)
     return 0

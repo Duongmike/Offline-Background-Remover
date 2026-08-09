@@ -22,6 +22,8 @@ follow [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Improved bounded processing, backend fallback reporting, and offline packaging.
+- Centralized application identity, benchmark, executable, installer, and
+  checksum versioning in one canonical module.
 - Kept AI mode compact by showing colour sampling and mask controls only for
   colour-key and hybrid removal.
 
