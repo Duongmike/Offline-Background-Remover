@@ -303,11 +303,12 @@ class BackendEquivalenceTests(unittest.TestCase):
             self.skipTest(f"rembg unavailable: {exc}")
         from image_tool.image_ops import postprocess_u2net, preprocess_u2net
         from image_tool.processing import bundled_model_directory
-        import onnxruntime as ort
 
         model_dir = bundled_model_directory()
         os.environ["U2NET_HOME"] = str(model_dir)
-        providers = [DIRECTML_PROVIDER] if DIRECTML_PROVIDER in ort.get_available_providers() else [CPU_PROVIDER]
+        # Backend equivalence is independent of GPU availability. GitHub-hosted
+        # Windows runners may list DirectML even when no compatible device exists.
+        providers = [CPU_PROVIDER]
         image = Image.new("RGB", (128, 96), "white")
         pixels = np.asarray(image).copy()
         pixels[15:85, 32:100] = (30, 100, 220)
