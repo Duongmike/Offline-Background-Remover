@@ -9,15 +9,14 @@ import sys
 import tempfile
 from pathlib import Path
 
-from image_tool.version import APP_VERSION
+from image_tool.version import APP_VERSION, INSTALLER_FILENAME
 
 
 RELEASE_TAG_PATTERN = re.compile(r"^v\d+\.\d+\.\d+$")
-INSTALLER_PREFIX = "KhongBietGiDungNoi_Setup_"
 
 
 def _installer_path(release_directory: Path) -> Path:
-    return release_directory / f"{INSTALLER_PREFIX}{APP_VERSION}.exe"
+    return release_directory / INSTALLER_FILENAME
 
 
 def _sha256_file(path: Path) -> str:

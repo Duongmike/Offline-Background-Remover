@@ -4,7 +4,15 @@ import re
 import unittest
 from pathlib import Path
 
-from image_tool.version import APP_NAME, APP_VERSION, WINDOWS_VERSION, _parse_windows_version
+from image_tool.version import (
+    APP_EXECUTABLE_BASENAME,
+    APP_EXECUTABLE_FILENAME,
+    APP_NAME,
+    APP_VERSION,
+    INSTALLER_FILENAME,
+    WINDOWS_VERSION,
+    _parse_windows_version,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -16,6 +24,11 @@ class VersionTests(unittest.TestCase):
         self.assertRegex(APP_VERSION, re.compile(r"^\d+\.\d+\.\d+$"))
         expected = tuple(int(part) for part in APP_VERSION.split(".")) + (0,)
         self.assertEqual(expected, WINDOWS_VERSION)
+
+    def test_packaging_uses_english_executable_names(self) -> None:
+        self.assertEqual("OfflineBackgroundRemover", APP_EXECUTABLE_BASENAME)
+        self.assertEqual("OfflineBackgroundRemover.exe", APP_EXECUTABLE_FILENAME)
+        self.assertEqual(f"OfflineBackgroundRemover_Setup_{APP_VERSION}.exe", INSTALLER_FILENAME)
 
     def test_windows_version_rejects_invalid_values(self) -> None:
         invalid_versions = ("1.2", "1.2.3.4", "1.2.beta", "1.2.-1", "65536.0.0")
@@ -51,11 +64,13 @@ class VersionTests(unittest.TestCase):
                 self.assertIn("from .version import APP_VERSION", content)
 
     def test_packaging_reads_canonical_version(self) -> None:
-        spec = (PROJECT_ROOT / "KhongBietGiDungNoi.spec").read_text(encoding="utf-8")
+        spec = (PROJECT_ROOT / "OfflineBackgroundRemover.spec").read_text(encoding="utf-8")
         installer = (PROJECT_ROOT / "installer.iss").read_text(encoding="utf-8")
         build_script = (PROJECT_ROOT / "build_installer.bat").read_text(encoding="utf-8")
 
-        self.assertIn("from image_tool.version import APP_VERSION, WINDOWS_VERSION", spec)
+        self.assertIn("APP_EXECUTABLE_BASENAME", spec)
+        self.assertIn("APP_VERSION", spec)
+        self.assertIn("WINDOWS_VERSION", spec)
         self.assertIn('GetEnv("APP_VERSION")', installer)
         self.assertIn("-m image_tool.version", build_script)
         self.assertIn('set "APP_VERSION="', build_script)

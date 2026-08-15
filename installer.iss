@@ -4,7 +4,7 @@
   #error APP_VERSION is required. Run build_installer.bat instead of compiling installer.iss directly.
 #endif
 #define MyAppPublisher "Không biết gì đừng nói"
-#define MyAppExeName "KhongBietGiDungNoi.exe"
+#define MyAppExeName "OfflineBackgroundRemover.exe"
 
 [Setup]
 AppId={{B6A3C0D4-8E67-4D5E-AF0B-24A7E19C5D32}
@@ -17,7 +17,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=release
-OutputBaseFilename=KhongBietGiDungNoi_Setup_{#MyAppVersion}
+OutputBaseFilename=OfflineBackgroundRemover_Setup_{#MyAppVersion}
 SetupIconFile=assets\app_icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/max
@@ -38,9 +38,10 @@ VersionInfoProductVersion={#MyAppVersion}
 Name: "desktopicon"; Description: "Tạo biểu tượng ngoài màn hình Desktop"; GroupDescription: "Tùy chọn bổ sung:"; Flags: unchecked
 
 [Files]
-Source: "dist\KhongBietGiDungNoi\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\OfflineBackgroundRemover\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [InstallDelete]
+Type: files; Name: "{app}\KhongBietGiDungNoi.exe"
 Type: files; Name: "{app}\TachNenPro.exe"
 Type: files; Name: "{group}\Tách Nền Pro.lnk"
 Type: files; Name: "{autodesktop}\Tách Nền Pro.lnk"

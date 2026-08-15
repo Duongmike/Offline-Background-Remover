@@ -37,11 +37,11 @@ người dùng, không tải lên dịch vụ bên ngoài.
 
 Tải bộ cài đã được kiểm tra tại **[GitHub Releases](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)**:
 
-1. Tải `KhongBietGiDungNoi_Setup_1.5.2.exe` và `SHA256SUMS.txt`.
+1. Tải `OfflineBackgroundRemover_Setup_1.5.2.exe` và `SHA256SUMS.txt`.
 2. Có thể xác minh bộ cài trước khi chạy:
 
    ```powershell
-   (Get-FileHash .\KhongBietGiDungNoi_Setup_1.5.2.exe -Algorithm SHA256).Hash
+   (Get-FileHash .\OfflineBackgroundRemover_Setup_1.5.2.exe -Algorithm SHA256).Hash
    Get-Content .\SHA256SUMS.txt
    ```
 

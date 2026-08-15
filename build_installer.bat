@@ -20,7 +20,7 @@ if not exist "%ISCC%" (
     exit /b 1
 )
 
-if not exist "dist\KhongBietGiDungNoi\KhongBietGiDungNoi.exe" (
+if not exist "dist\OfflineBackgroundRemover\OfflineBackgroundRemover.exe" (
     echo [LOI] Chua co ban build. Hay chay build.bat truoc.
     if not defined CI pause
     exit /b 1

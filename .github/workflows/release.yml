@@ -69,7 +69,7 @@ jobs:
         with:
           name: windows-release
           path: |
-            release/KhongBietGiDungNoi_Setup_*.exe
+            release/OfflineBackgroundRemover_Setup_*.exe
             release/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0

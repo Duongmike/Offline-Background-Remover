@@ -41,11 +41,11 @@ the local machine; the application does not upload them to a remote service.
 
 Download the latest verified installer from **[GitHub Releases](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)**:
 
-1. Download `KhongBietGiDungNoi_Setup_1.5.2.exe` and `SHA256SUMS.txt`.
+1. Download `OfflineBackgroundRemover_Setup_1.5.2.exe` and `SHA256SUMS.txt`.
 2. Optionally verify the installer before running it:
 
    ```powershell
-   (Get-FileHash .\KhongBietGiDungNoi_Setup_1.5.2.exe -Algorithm SHA256).Hash
+   (Get-FileHash .\OfflineBackgroundRemover_Setup_1.5.2.exe -Algorithm SHA256).Hash
    Get-Content .\SHA256SUMS.txt
    ```
 

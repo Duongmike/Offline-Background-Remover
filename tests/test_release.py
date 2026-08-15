@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from image_tool.version import APP_VERSION
+from image_tool.version import APP_VERSION, INSTALLER_FILENAME
 from scripts.verify_release import validate_release_tag, verify_release_artifacts, write_release_checksum
 
 
@@ -19,7 +19,7 @@ class ReleaseValidationTests(unittest.TestCase):
     def test_release_artifacts_accept_matching_checksum(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             release_directory = Path(temporary_directory)
-            installer = release_directory / f"KhongBietGiDungNoi_Setup_{APP_VERSION}.exe"
+            installer = release_directory / INSTALLER_FILENAME
             installer.write_bytes(b"synthetic installer fixture")
             digest = hashlib.sha256(installer.read_bytes()).hexdigest().upper()
             checksum_file = release_directory / "SHA256SUMS.txt"
@@ -33,7 +33,7 @@ class ReleaseValidationTests(unittest.TestCase):
     def test_release_checksum_is_written_atomically_and_verifies(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             release_directory = Path(temporary_directory)
-            installer = release_directory / f"KhongBietGiDungNoi_Setup_{APP_VERSION}.exe"
+            installer = release_directory / INSTALLER_FILENAME
             installer.write_bytes(b"synthetic installer fixture")
 
             actual_installer, checksum_file = write_release_checksum(release_directory)
@@ -47,7 +47,7 @@ class ReleaseValidationTests(unittest.TestCase):
     def test_release_artifacts_reject_checksum_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             release_directory = Path(temporary_directory)
-            installer = release_directory / f"KhongBietGiDungNoi_Setup_{APP_VERSION}.exe"
+            installer = release_directory / INSTALLER_FILENAME
             installer.write_bytes(b"synthetic installer fixture")
             (release_directory / "SHA256SUMS.txt").write_text(
                 f"{'0' * 64}  {installer.name}\n",

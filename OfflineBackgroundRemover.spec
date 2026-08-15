@@ -12,8 +12,13 @@ from PyInstaller.utils.win32.versioninfo import (
 )
 from pathlib import Path
 
-from image_tool.version import APP_NAME
-from image_tool.version import APP_VERSION, WINDOWS_VERSION
+from image_tool.version import (
+    APP_EXECUTABLE_BASENAME,
+    APP_EXECUTABLE_FILENAME,
+    APP_NAME,
+    APP_VERSION,
+    WINDOWS_VERSION,
+)
 
 
 block_cipher = None
@@ -37,9 +42,9 @@ version_info = VSVersionInfo(
                     StringStruct("CompanyName", "Không biết gì đừng nói"),
                     StringStruct("FileDescription", f"{APP_NAME} - Xóa nền AI và resize ảnh"),
                     StringStruct("FileVersion", APP_VERSION),
-                    StringStruct("InternalName", "KhongBietGiDungNoi"),
+                    StringStruct("InternalName", APP_EXECUTABLE_BASENAME),
                     StringStruct("LegalCopyright", "Copyright 2026"),
-                    StringStruct("OriginalFilename", "KhongBietGiDungNoi.exe"),
+                    StringStruct("OriginalFilename", APP_EXECUTABLE_FILENAME),
                     StringStruct("ProductName", APP_NAME),
                     StringStruct("ProductVersion", APP_VERSION),
                 ],
@@ -91,7 +96,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="KhongBietGiDungNoi",
+    name=APP_EXECUTABLE_BASENAME,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -113,5 +118,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name="KhongBietGiDungNoi",
+    name=APP_EXECUTABLE_BASENAME,
 )
