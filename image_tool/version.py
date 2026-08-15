@@ -3,7 +3,7 @@ from __future__ import annotations
 
 
 APP_NAME = "Xóa Nền AI Offline"
-APP_VERSION = "1.5.2"
+APP_VERSION = "1.5.3"
 APP_EXECUTABLE_BASENAME = "OfflineBackgroundRemover"
 APP_EXECUTABLE_FILENAME = f"{APP_EXECUTABLE_BASENAME}.exe"
 INSTALLER_FILENAME = f"{APP_EXECUTABLE_BASENAME}_Setup_{APP_VERSION}.exe"

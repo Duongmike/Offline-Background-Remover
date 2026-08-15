@@ -12,7 +12,7 @@ Offline Background Remover is a Windows desktop application for AI background re
 advanced colour-keying, batch processing, and image resizing. Images stay on
 the local machine; the application does not upload them to a remote service.
 
-> **Current release:** v1.5.2. The application is actively developed and its
+> **Current release:** v1.5.3. The application is actively developed and its
 > complete workflow supports English and Vietnamese with a persisted language
 > selection.
 
@@ -41,11 +41,11 @@ the local machine; the application does not upload them to a remote service.
 
 Download the latest verified installer from **[GitHub Releases](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)**:
 
-1. Download `OfflineBackgroundRemover_Setup_1.5.2.exe` and `SHA256SUMS.txt`.
+1. Download `OfflineBackgroundRemover_Setup_1.5.3.exe` and `SHA256SUMS.txt`.
 2. Optionally verify the installer before running it:
 
    ```powershell
-   (Get-FileHash .\OfflineBackgroundRemover_Setup_1.5.2.exe -Algorithm SHA256).Hash
+   (Get-FileHash .\OfflineBackgroundRemover_Setup_1.5.3.exe -Algorithm SHA256).Hash
    Get-Content .\SHA256SUMS.txt
    ```
 

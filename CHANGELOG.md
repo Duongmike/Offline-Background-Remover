@@ -5,6 +5,14 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-08-15
+
+### Changed
+
+- Rename the packaged application to `OfflineBackgroundRemover.exe` and the
+  installer to `OfflineBackgroundRemover_Setup_<version>.exe`.
+- Keep upgrade compatibility by removing the legacy executable during install.
+
 ## [1.5.2] - 2026-08-09
 
 ### Fixed
@@ -46,7 +54,8 @@ follow [Semantic Versioning](https://semver.org/).
 - Kept AI mode compact by showing colour sampling and mask controls only for
   colour-key and hybrid removal.
 
-[Unreleased]: https://github.com/Duongmike/Offline-Background-Remover/compare/v1.5.2...HEAD
+[Unreleased]: https://github.com/Duongmike/Offline-Background-Remover/compare/v1.5.3...HEAD
+[1.5.3]: https://github.com/Duongmike/Offline-Background-Remover/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/Duongmike/Offline-Background-Remover/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/Duongmike/Offline-Background-Remover/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Duongmike/Offline-Background-Remover/releases/tag/v1.5.0

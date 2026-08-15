@@ -11,7 +11,7 @@ Xóa Nền AI Offline là ứng dụng desktop Windows để xóa nền AI, tác
 màu nâng cao, xử lý hàng loạt và resize ảnh. Ảnh chỉ được xử lý trên máy của
 người dùng, không tải lên dịch vụ bên ngoài.
 
-> **Bản hiện tại:** v1.5.2. Dự án đang được phát triển tích cực; toàn bộ workflow
+> **Bản hiện tại:** v1.5.3. Dự án đang được phát triển tích cực; toàn bộ workflow
 > hỗ trợ English và Tiếng Việt, đồng thời lưu lựa chọn ngôn ngữ của người dùng.
 
 ![Giao diện Offline Background Remover](ui_preview.png)
@@ -37,11 +37,11 @@ người dùng, không tải lên dịch vụ bên ngoài.
 
 Tải bộ cài đã được kiểm tra tại **[GitHub Releases](https://github.com/Duongmike/Offline-Background-Remover/releases/latest)**:
 
-1. Tải `OfflineBackgroundRemover_Setup_1.5.2.exe` và `SHA256SUMS.txt`.
+1. Tải `OfflineBackgroundRemover_Setup_1.5.3.exe` và `SHA256SUMS.txt`.
 2. Có thể xác minh bộ cài trước khi chạy:
 
    ```powershell
-   (Get-FileHash .\OfflineBackgroundRemover_Setup_1.5.2.exe -Algorithm SHA256).Hash
+   (Get-FileHash .\OfflineBackgroundRemover_Setup_1.5.3.exe -Algorithm SHA256).Hash
    Get-Content .\SHA256SUMS.txt
    ```
 
