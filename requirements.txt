@@ -1,4 +1,4 @@
-Pillow>=10.4,<13
+Pillow>=12.3.0,<13
 numpy>=1.26,<3
 onnxruntime-directml==1.23.0
 tkinterdnd2>=0.4.3,<1
