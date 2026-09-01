@@ -86,7 +86,7 @@ jobs:
 
     steps:
       - name: Download verified release artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: windows-release
           path: release
